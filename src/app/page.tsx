@@ -301,64 +301,68 @@ function Logo({ light = false }: { light?: boolean }) {
 
 const NAV_LINKS = [
   { label: "Services", href: "#services" },
-  { label: "How It Works", href: "#process" },
+  { label: "How it works", href: "#process" },
   { label: "Pricing", href: "#pricing" },
-  { label: "Is This You?", href: "#signs" },
 ];
 
 function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-md border-b border-border">
-      <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Logo />
-        <div className="hidden md:flex items-center gap-8">
-          {NAV_LINKS.map((link) => (
+    <header className="fixed w-full bg-white/95 backdrop-blur-md border-b border-gray-100 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          <Logo />
+
+          <nav className="hidden md:flex items-center space-x-8">
+            {NAV_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="text-gray-700 hover:text-primary transition"
+              >
+                {link.label}
+              </a>
+            ))}
             <a
-              key={link.href}
-              href={link.href}
-              className="text-sm font-semibold text-muted hover:text-primary transition-colors"
+              href="#contact"
+              className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-accent transition"
             >
-              {link.label}
+              Get Started
             </a>
-          ))}
-          <a
-            href="#contact"
-            className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-accent transition-colors"
+          </nav>
+
+          <button
+            onClick={() => setOpen(!open)}
+            className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+            aria-label="Toggle navigation"
           >
-            Get Started <IconArrowRight className="w-4 h-4" />
-          </a>
+            {open ? <IconX /> : <IconMenu />}
+          </button>
         </div>
-        <button
-          className="md:hidden p-2 rounded-lg hover:bg-section-alt transition-colors"
-          onClick={() => setOpen(!open)}
-          aria-label="Toggle navigation"
-        >
-          {open ? <IconX /> : <IconMenu />}
-        </button>
-      </nav>
-      {open && (
-        <div className="md:hidden bg-background border-b border-border px-6 pb-6 pt-2">
-          {NAV_LINKS.map((link) => (
+
+        {open && (
+          <nav className="md:hidden pb-4 space-y-2">
+            {NAV_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                onClick={() => setOpen(false)}
+              >
+                {link.label}
+              </a>
+            ))}
             <a
-              key={link.href}
-              href={link.href}
-              className="block py-3 text-base font-semibold text-muted hover:text-primary transition-colors"
+              href="#contact"
+              className="block px-4 py-2 bg-primary text-white rounded-lg"
               onClick={() => setOpen(false)}
             >
-              {link.label}
+              Get Started
             </a>
-          ))}
-          <a
-            href="#contact"
-            className="mt-3 inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-accent transition-colors"
-            onClick={() => setOpen(false)}
-          >
-            Get Started <IconArrowRight className="w-4 h-4" />
-          </a>
-        </div>
-      )}
+          </nav>
+        )}
+      </div>
     </header>
   );
 }
@@ -370,30 +374,27 @@ function Hero() {
     <section className="pt-32 pb-20 md:pt-40 md:pb-28 px-6 bg-background overflow-hidden">
       <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
         <div>
-          <p className="text-primary font-semibold text-sm tracking-wide uppercase mb-4">
-            Shopify Operations Consulting
-          </p>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-foreground mb-6">
-            Shopify operations,{" "}
-            <span className="text-primary">cleaned up.</span>
+            Transform your Shopify operations
+            <span className="text-primary">.</span>
           </h1>
           <p className="text-lg md:text-xl text-muted max-w-2xl mb-8 leading-relaxed">
-            We help growing Shopify merchants fix workflow bottlenecks, reduce
-            manual work, and build reliable back-office systems their teams can
-            actually trust.
+            Stop managing chaos. We streamline your Shopify store operations,
+            eliminate bottlenecks, and unlock growth through proven systems and
+            automation.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <a
               href="#contact"
               className="inline-flex items-center justify-center gap-2 bg-primary text-white px-8 py-3.5 rounded-lg text-base font-semibold hover:bg-accent transition-colors"
             >
-              Book a Discovery Call <IconArrowRight className="w-4 h-4" />
+              Start Your Audit <IconArrowRight className="w-4 h-4" />
             </a>
             <a
               href="#services"
               className="inline-flex items-center justify-center gap-2 border-2 border-border text-foreground px-8 py-3.5 rounded-lg text-base font-semibold hover:border-primary hover:text-primary transition-colors"
             >
-              See How We Help
+              Watch Demo
             </a>
           </div>
         </div>
@@ -408,24 +409,19 @@ function Hero() {
 /* ───────────────────────── TRUST STATS BAR ───────────────────────── */
 
 const STATS = [
-  { icon: IconTrendingUp, value: "50+", label: "Shopify stores optimized" },
-  { icon: IconBolt, value: "10,000+", label: "Admin hours saved" },
-  { icon: IconHeart, value: "98%", label: "Client retention rate" },
+  { value: "500+", label: "Stores Optimized" },
+  { value: "$45M+", label: "Revenue Generated" },
+  { value: "97%", label: "Client Satisfaction" },
 ];
 
 function TrustStats() {
   return (
-    <section className="py-10 px-6 bg-primary/5 border-y border-primary/10">
+    <section className="py-16 px-6">
       <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-4">
         {STATS.map((stat) => (
-          <div key={stat.label} className="flex items-center gap-4 justify-center">
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-              <stat.icon className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-              <p className="text-sm text-muted">{stat.label}</p>
-            </div>
+          <div key={stat.label} className="bg-primary/5 rounded-xl p-8 text-center">
+            <p className="text-4xl md:text-5xl font-bold text-primary mb-2">{stat.value}</p>
+            <p className="text-base text-muted">{stat.label}</p>
           </div>
         ))}
       </div>
