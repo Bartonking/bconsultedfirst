@@ -14,6 +14,14 @@ function getResend(): Resend {
   return resend;
 }
 
+function getEmailDomain(): string {
+  const domain = process.env.EMAIL_DOMAIN;
+  if (!domain) {
+    throw new Error("Missing EMAIL_DOMAIN environment variable");
+  }
+  return domain;
+}
+
 export async function sendReportEmail(
   to: string,
   report: AuditReport,
@@ -22,7 +30,7 @@ export async function sendReportEmail(
   try {
     const client = getResend();
     const { error } = await client.emails.send({
-      from: "bConsulted First <audits@bconsultedfirst.com>",
+      from: `bConsulted First <audits@${getEmailDomain()}>`,
       to,
       subject: `Your Shopify Audit Report — Score: ${report.overallScore}/100`,
       html,
@@ -51,8 +59,8 @@ export async function sendContactNotification(
   try {
     const client = getResend();
     const { error } = await client.emails.send({
-      from: "bConsulted First <notifications@bconsultedfirst.com>",
-      to: "hello@bconsultedfirst.com",
+      from: `bConsulted First <notifications@${getEmailDomain()}>`,
+      to: `hello@${getEmailDomain()}`,
       subject: `Contact Form: ${subject}`,
       text: `New contact form submission:\n\nName: ${name}\nEmail: ${email}\nSubject: ${subject}\n\nMessage:\n${message}`,
     });

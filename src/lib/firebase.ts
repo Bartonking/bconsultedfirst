@@ -1,5 +1,7 @@
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
 let app: App | undefined;
 let db: Firestore | undefined;
@@ -12,8 +14,8 @@ export function getDb(): Firestore {
     const projectId = process.env.FIREBASE_PROJECT_ID;
 
     if (credPath) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const serviceAccount = require(credPath);
+      const absPath = resolve(credPath);
+      const serviceAccount = JSON.parse(readFileSync(absPath, "utf-8"));
       app = initializeApp({ credential: cert(serviceAccount), projectId });
     } else if (projectId) {
       // Use Application Default Credentials (Cloud Run, etc.)

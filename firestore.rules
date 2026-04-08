@@ -1,0 +1,33 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Leads — server-only write, no client read
+    match /leads/{leadId} {
+      allow read, write: if false;
+    }
+
+    // Audit Jobs — server-only write, clients can read their own job by ID
+    match /auditJobs/{jobId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Audit Reports — server-only write, clients can read their own report by ID
+    match /auditReports/{reportId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Consultations — server-only
+    match /consultations/{conId} {
+      allow read, write: if false;
+    }
+
+    // Contact Messages — server-only
+    match /contactMessages/{msgId} {
+      allow read, write: if false;
+    }
+  }
+}
