@@ -13,13 +13,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "bConsulted | Shopify Operations, Cleaned Up",
+  title: "bConsulted First | Free AI-Powered Shopify Operations Audit",
   description:
-    "We help growing Shopify merchants streamline order operations, clean up catalog structure, and build reporting their teams can trust.",
+    "Get a free AI-powered preliminary audit of your Shopify store operations. Identify workflow friction, catalog issues, and operational gaps. No login required.",
   openGraph: {
-    title: "bConsulted | Shopify Operations, Cleaned Up",
+    title: "bConsulted First | Free Shopify Operations Audit",
     description:
-      "Fix workflow bottlenecks, reduce manual work, and build reliable back-office systems for your Shopify store.",
+      "Uncover operational friction in your Shopify store. Get a free AI-powered preliminary audit with actionable findings and recommendations.",
     type: "website",
   },
 };
