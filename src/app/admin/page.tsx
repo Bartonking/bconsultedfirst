@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MOCK_LEADS, MOCK_JOBS } from "@/lib/mock-data";
 import { IconEye, IconRefresh, IconDownload } from "@/components/icons";
+import type { Lead, AuditJob } from "@/lib/types";
 
 const STATUS_STYLES: Record<string, string> = {
   complete: "bg-green-100 text-green-800",
@@ -11,10 +12,26 @@ const STATUS_STYLES: Record<string, string> = {
   failed: "bg-red-100 text-red-800",
 };
 
+interface LeadWithJob {
+  lead: Lead;
+  job: AuditJob | null;
+}
+
 export default function AdminDashboard() {
-  const totalLeads = MOCK_LEADS.length;
-  const completedAudits = MOCK_JOBS.filter((j) => j.status === "complete").length;
-  const consultationRate = Math.round((2 / totalLeads) * 100);
+  const [data, setData] = useState<LeadWithJob[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/admin/leads")
+      .then((res) => res.json())
+      .then((json) => setData(json.leads || []))
+      .catch(() => setData([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const totalLeads = data.length;
+  const completedAudits = data.filter((d) => d.job?.status === "complete").length;
+  const consultationRate = totalLeads > 0 ? Math.round((2 / totalLeads) * 100) : 0;
 
   return (
     <div className="p-6 md:p-10">
@@ -46,22 +63,25 @@ export default function AdminDashboard() {
 
       {/* Lead Table */}
       <div className="bg-white border border-border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-gray-50">
-                <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Email</th>
-                <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Store URL</th>
-                <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Challenge</th>
-                <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Status</th>
-                <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Date</th>
-                <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_LEADS.map((lead, i) => {
-                const job = MOCK_JOBS[i];
-                return (
+        {loading ? (
+          <div className="p-8 text-center text-muted text-sm">Loading leads...</div>
+        ) : data.length === 0 ? (
+          <div className="p-8 text-center text-muted text-sm">No leads yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-gray-50">
+                  <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Email</th>
+                  <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Store URL</th>
+                  <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Challenge</th>
+                  <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Status</th>
+                  <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Date</th>
+                  <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.map(({ lead, job }) => (
                   <tr key={lead.id} className="border-b border-border last:border-b-0 hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm text-foreground">{lead.email}</td>
                     <td className="px-6 py-4 text-sm text-muted">{lead.siteUrl}</td>
@@ -78,9 +98,9 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        {job?.status === "complete" && (
+                        {job?.status === "complete" && job.reportId && (
                           <Link
-                            href={`/admin/audit/${job.id}`}
+                            href={`/admin/audit/${job.reportId}`}
                             className="inline-flex items-center gap-1 text-xs text-primary hover:text-accent font-medium"
                           >
                             <IconEye className="w-3.5 h-3.5" /> View
@@ -94,11 +114,11 @@ export default function AdminDashboard() {
                       </div>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

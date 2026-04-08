@@ -1,13 +1,37 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AuditScoreBar } from "@/components/audit/AuditScoreBar";
 import { AuditFinding } from "@/components/audit/AuditFinding";
 import { IconArrowRight, IconCheck, IconMail } from "@/components/icons";
-import { MOCK_AUDIT_REPORT } from "@/lib/mock-data";
+import { getDb, COLLECTIONS } from "@/lib/firebase";
+import type { AuditReport } from "@/lib/types";
 
-export default function AuditResultsPage() {
-  const report = MOCK_AUDIT_REPORT;
+async function getReport(id: string): Promise<AuditReport | null> {
+  try {
+    const db = getDb();
+    const doc = await db.collection(COLLECTIONS.auditReports).doc(id).get();
+    if (!doc.exists) return null;
+    return doc.data() as AuditReport;
+  } catch (err) {
+    console.error("Failed to fetch report:", err);
+    return null;
+  }
+}
+
+export default async function AuditResultsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const report = await getReport(id);
+
+  if (!report) {
+    notFound();
+  }
+
   const scoreColor =
     report.overallScore >= 70 ? "text-primary" : report.overallScore >= 50 ? "text-amber-500" : "text-red-500";
 

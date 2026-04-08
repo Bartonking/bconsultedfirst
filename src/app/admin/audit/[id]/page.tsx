@@ -1,14 +1,54 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
-import { MOCK_AUDIT_REPORT, MOCK_LEADS } from "@/lib/mock-data";
 import { AuditScoreBar } from "@/components/audit/AuditScoreBar";
 import { AuditFinding } from "@/components/audit/AuditFinding";
 import { IconArrowRight } from "@/components/icons";
+import type { AuditReport, Lead, AuditJob, Consultation } from "@/lib/types";
+
+interface AdminAuditData {
+  report: AuditReport | null;
+  lead: Lead | null;
+  job: AuditJob | null;
+  consultation: Consultation | null;
+}
 
 export default function AdminAuditReview() {
-  const report = MOCK_AUDIT_REPORT;
-  const lead = MOCK_LEADS[0];
+  const params = useParams<{ id: string }>();
+  const [data, setData] = useState<AdminAuditData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!params.id) return;
+    fetch(`/api/admin/audit/${params.id}`)
+      .then((res) => res.json())
+      .then((json) => setData(json))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <div className="p-6 md:p-10">
+        <p className="text-muted text-sm">Loading audit...</p>
+      </div>
+    );
+  }
+
+  if (!data?.report) {
+    return (
+      <div className="p-6 md:p-10">
+        <p className="text-muted text-sm">Audit not found.</p>
+        <Link href="/admin" className="text-sm text-primary hover:text-accent mt-4 inline-block">
+          &larr; Back to Dashboard
+        </Link>
+      </div>
+    );
+  }
+
+  const { report, lead, consultation } = data;
 
   return (
     <div className="p-6 md:p-10">
@@ -56,35 +96,37 @@ export default function AdminAuditReview() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          <div className="bg-white border border-border rounded-xl p-6">
-            <h3 className="font-bold text-foreground mb-4">Lead Information</h3>
-            <dl className="space-y-3 text-sm">
-              <div>
-                <dt className="text-muted">Email</dt>
-                <dd className="text-foreground font-medium">{lead.email}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">Store URL</dt>
-                <dd className="text-foreground font-medium">{lead.siteUrl}</dd>
-              </div>
-              {lead.storeName && (
+          {lead && (
+            <div className="bg-white border border-border rounded-xl p-6">
+              <h3 className="font-bold text-foreground mb-4">Lead Information</h3>
+              <dl className="space-y-3 text-sm">
                 <div>
-                  <dt className="text-muted">Store Name</dt>
-                  <dd className="text-foreground font-medium">{lead.storeName}</dd>
+                  <dt className="text-muted">Email</dt>
+                  <dd className="text-foreground font-medium">{lead.email}</dd>
                 </div>
-              )}
-              {lead.challengeArea && (
                 <div>
-                  <dt className="text-muted">Challenge</dt>
-                  <dd className="text-foreground font-medium capitalize">{lead.challengeArea.replace("-", " ")}</dd>
+                  <dt className="text-muted">Store URL</dt>
+                  <dd className="text-foreground font-medium">{lead.siteUrl}</dd>
                 </div>
-              )}
-              <div>
-                <dt className="text-muted">Submitted</dt>
-                <dd className="text-foreground font-medium">{new Date(lead.createdAt).toLocaleString()}</dd>
-              </div>
-            </dl>
-          </div>
+                {lead.storeName && (
+                  <div>
+                    <dt className="text-muted">Store Name</dt>
+                    <dd className="text-foreground font-medium">{lead.storeName}</dd>
+                  </div>
+                )}
+                {lead.challengeArea && (
+                  <div>
+                    <dt className="text-muted">Challenge</dt>
+                    <dd className="text-foreground font-medium capitalize">{lead.challengeArea.replace("-", " ")}</dd>
+                  </div>
+                )}
+                <div>
+                  <dt className="text-muted">Submitted</dt>
+                  <dd className="text-foreground font-medium">{new Date(lead.createdAt).toLocaleString()}</dd>
+                </div>
+              </dl>
+            </div>
+          )}
 
           <div className="bg-white border border-border rounded-xl p-6">
             <h3 className="font-bold text-foreground mb-4">Actions</h3>
@@ -101,14 +143,26 @@ export default function AdminAuditReview() {
             </div>
           </div>
 
-          <div className="bg-white border border-border rounded-xl p-6">
-            <h3 className="font-bold text-foreground mb-3">Consultation Status</h3>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800">
-              Scheduled
-            </span>
-            <p className="text-sm text-muted mt-3">April 10, 2026 at 2:00 PM</p>
-            <p className="text-sm text-muted mt-1">Interested in catalog restructuring</p>
-          </div>
+          {consultation && (
+            <div className="bg-white border border-border rounded-xl p-6">
+              <h3 className="font-bold text-foreground mb-3">Consultation Status</h3>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                consultation.consultationStatus === "scheduled"
+                  ? "bg-green-100 text-green-800"
+                  : consultation.consultationStatus === "requested"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : "bg-blue-100 text-blue-800"
+              }`}>
+                {consultation.consultationStatus}
+              </span>
+              {consultation.bookedAt && (
+                <p className="text-sm text-muted mt-3">{new Date(consultation.bookedAt).toLocaleString()}</p>
+              )}
+              {consultation.notes && (
+                <p className="text-sm text-muted mt-1">{consultation.notes}</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -8,14 +8,38 @@ import { CHALLENGE_OPTIONS } from "@/lib/constants";
 export function AuditForm({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    // Simulate navigation to processing page
-    setTimeout(() => {
-      router.push("/audit/processing");
-    }, 500);
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const payload = {
+      email: formData.get("email") as string,
+      storeUrl: formData.get("storeUrl") as string,
+      challenge: (formData.get("challenge") as string) || undefined,
+    };
+
+    try {
+      const res = await fetch("/api/audits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Something went wrong. Please try again.");
+      }
+
+      const { jobId } = await res.json();
+      router.push(`/audit/processing?jobId=${jobId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setLoading(false);
+    }
   }
 
   if (compact) {
@@ -100,6 +124,9 @@ export function AuditForm({ compact = false }: { compact?: boolean }) {
         >
           {loading ? "Starting Audit..." : "Get My Audit"} <IconArrowRight className="w-4 h-4" />
         </button>
+        {error && (
+          <p className="text-xs text-red-600 text-center">{error}</p>
+        )}
         <p className="text-xs text-muted text-center">
           Your report will be generated using public store review and sent to your email.
         </p>

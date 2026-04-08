@@ -7,10 +7,37 @@ import { IconArrowRight, IconCheck, IconShield, IconChat, IconClock } from "@/co
 
 export default function BookPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
+    setLoading(true);
+    setError(null);
+
+    const fd = new FormData(e.currentTarget);
+    const payload = {
+      name: fd.get("name") as string,
+      email: fd.get("email") as string,
+      storeUrl: (fd.get("storeUrl") as string) || "",
+      teamSize: (fd.get("teamSize") as string) || undefined,
+      challenge: (fd.get("challenge") as string) || undefined,
+      context: (fd.get("context") as string) || undefined,
+    };
+
+    try {
+      const res = await fetch("/api/consultations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Failed to submit. Please try again.");
+      setSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -109,8 +136,11 @@ export default function BookPage() {
                       <label htmlFor="book-context" className="block text-sm font-semibold text-foreground mb-1.5">Additional Context</label>
                       <textarea id="book-context" name="context" rows={3} className="w-full border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder-muted/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none" placeholder="Tell us more about your situation..." />
                     </div>
-                    <button type="submit" className="w-full inline-flex items-center justify-center gap-2 bg-primary text-white px-6 py-3.5 rounded-lg text-base font-semibold hover:bg-accent transition-colors">
-                      Book My Consultation <IconArrowRight className="w-4 h-4" />
+                    {error && (
+                      <p className="text-sm text-red-600">{error}</p>
+                    )}
+                    <button type="submit" disabled={loading} className="w-full inline-flex items-center justify-center gap-2 bg-primary text-white px-6 py-3.5 rounded-lg text-base font-semibold hover:bg-accent transition-colors disabled:opacity-60">
+                      {loading ? "Submitting..." : "Book My Consultation"} <IconArrowRight className="w-4 h-4" />
                     </button>
                   </form>
                 )}

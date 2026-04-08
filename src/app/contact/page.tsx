@@ -7,10 +7,35 @@ import { IconArrowRight, IconCheck, IconMail } from "@/components/icons";
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
+    setLoading(true);
+    setError(null);
+
+    const fd = new FormData(e.currentTarget);
+    const payload = {
+      name: fd.get("name") as string,
+      email: fd.get("email") as string,
+      subject: (fd.get("subject") as string) || "",
+      message: fd.get("message") as string,
+    };
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Failed to send. Please try again.");
+      setSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -58,8 +83,11 @@ export default function ContactPage() {
                     <label htmlFor="contact-message" className="block text-sm font-semibold text-foreground mb-1.5">Message</label>
                     <textarea id="contact-message" name="message" rows={5} required className="w-full border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder-muted/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none" placeholder="Tell us what you need help with..." />
                   </div>
-                  <button type="submit" className="w-full inline-flex items-center justify-center gap-2 bg-primary text-white px-6 py-3.5 rounded-lg text-base font-semibold hover:bg-accent transition-colors">
-                    Send Message <IconArrowRight className="w-4 h-4" />
+                  {error && (
+                    <p className="text-sm text-red-600">{error}</p>
+                  )}
+                  <button type="submit" disabled={loading} className="w-full inline-flex items-center justify-center gap-2 bg-primary text-white px-6 py-3.5 rounded-lg text-base font-semibold hover:bg-accent transition-colors disabled:opacity-60">
+                    {loading ? "Sending..." : "Send Message"} <IconArrowRight className="w-4 h-4" />
                   </button>
                 </form>
               )}

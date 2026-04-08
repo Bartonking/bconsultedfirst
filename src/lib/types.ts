@@ -15,6 +15,8 @@ export interface AuditJob {
   startedAt?: string;
   completedAt?: string;
   errorMessage?: string;
+  reportId?: string;
+  emailStatus?: "pending" | "sent" | "failed";
 }
 
 export interface AuditReport {
@@ -26,6 +28,7 @@ export interface AuditReport {
   categories: AuditCategory[];
   findings: AuditFinding[];
   recommendations: string[];
+  reportHtml?: string;
   createdAt: string;
 }
 
@@ -50,4 +53,23 @@ export interface Consultation {
   consultationStatus: "requested" | "scheduled" | "completed" | "cancelled";
   bookedAt?: string;
   notes?: string;
+}
+
+// API request/response types
+export interface CreateAuditRequest {
+  email: string;
+  storeUrl: string;
+  challenge?: string;
+}
+
+export interface CreateAuditResponse {
+  jobId: string;
+  status: "queued";
+}
+
+export interface AuditStatusResponse {
+  jobId: string;
+  status: AuditJob["status"];
+  reportId?: string;
+  summary?: string;
 }
