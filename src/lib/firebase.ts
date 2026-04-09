@@ -10,19 +10,32 @@ export function getDb(): Firestore {
   if (db) return db;
 
   if (getApps().length === 0) {
-    const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
     const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-    if (credPath) {
+    if (clientEmail && privateKey) {
+      // Production: use individual env vars (Vercel, serverless)
+      app = initializeApp({
+        credential: cert({
+          projectId,
+          clientEmail,
+          privateKey: privateKey.replace(/\\n/g, "\n"),
+        }),
+        projectId,
+      });
+    } else if (credPath) {
+      // Local dev: read from service account JSON file
       const absPath = resolve(credPath);
       const serviceAccount = JSON.parse(readFileSync(absPath, "utf-8"));
       app = initializeApp({ credential: cert(serviceAccount), projectId });
     } else if (projectId) {
-      // Use Application Default Credentials (Cloud Run, etc.)
+      // Cloud Run, etc.: use Application Default Credentials
       app = initializeApp({ projectId });
     } else {
       throw new Error(
-        "Missing FIREBASE_PROJECT_ID or GOOGLE_APPLICATION_CREDENTIALS"
+        "Missing Firebase credentials. Set FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY, or GOOGLE_APPLICATION_CREDENTIALS"
       );
     }
   } else {
