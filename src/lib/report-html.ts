@@ -17,8 +17,17 @@ function severityColor(severity: string): { bg: string; text: string } {
   }
 }
 
-export function renderReportHtml(report: AuditReport): string {
+export function renderReportHtml(
+  report: AuditReport,
+  leadInfo?: { email: string; name?: string }
+): string {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://bconsultedfirst.com";
+
+  const bookParams = new URLSearchParams();
+  if (leadInfo?.email) bookParams.set("email", leadInfo.email);
+  if (leadInfo?.name) bookParams.set("name", leadInfo.name);
+  bookParams.set("storeUrl", report.storeUrl);
+  const bookUrl = `${baseUrl}/book${bookParams.size ? "?" + bookParams.toString() : ""}`;
 
   const categoryRows = report.categories
     .map(
@@ -121,7 +130,7 @@ export function renderReportHtml(report: AuditReport): string {
       <p style="font-size:14px;color:rgba(255,255,255,0.8);margin:0 0 20px;">
         Book a consultation to review findings with a specialist and create an improvement plan.
       </p>
-      <a href="${baseUrl}/book" style="display:inline-block;background:#ffffff;color:#398860;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none;">
+      <a href="${bookUrl}" style="display:inline-block;background:#ffffff;color:#398860;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none;">
         Book a Consultation
       </a>
     </div>

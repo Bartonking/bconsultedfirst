@@ -62,8 +62,9 @@ export default function ConsultationsPage() {
                 <tr className="border-b border-border bg-gray-50">
                   <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Lead</th>
                   <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Status</th>
-                  <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Booked At</th>
+                  <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Scheduled</th>
                   <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Notes</th>
+                  <th className="text-left text-xs font-semibold text-muted uppercase tracking-wide px-6 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -79,9 +80,21 @@ export default function ConsultationsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-muted">
-                      {con.bookedAt ? new Date(con.bookedAt).toLocaleString() : "-"}
+                      {con.scheduledStartAt ? new Date(con.scheduledStartAt).toLocaleString() : con.bookedAt ? new Date(con.bookedAt).toLocaleString() : "-"}
                     </td>
                     <td className="px-6 py-4 text-sm text-muted">{con.notes || "-"}</td>
+                    <td className="px-6 py-4">
+                      {con.consultationStatus === "scheduled" && (
+                        <div className="flex gap-2">
+                          {con.rescheduleUrl && (
+                            <a href={con.rescheduleUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">Reschedule</a>
+                          )}
+                          {con.cancelUrl && (
+                            <a href={con.cancelUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-red-600 hover:underline">Cancel</a>
+                          )}
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

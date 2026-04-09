@@ -53,6 +53,12 @@ export interface Consultation {
   consultationStatus: "requested" | "scheduled" | "completed" | "cancelled";
   bookedAt?: string;
   notes?: string;
+  calendlyEventUri?: string;
+  calendlyInviteeUri?: string;
+  scheduledStartAt?: string;
+  scheduledEndAt?: string;
+  cancelUrl?: string;
+  rescheduleUrl?: string;
 }
 
 // API request/response types

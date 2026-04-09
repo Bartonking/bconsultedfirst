@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       .set(consultation);
 
     return Response.json(
-      { consultationId, status: "requested" },
+      { consultationId, status: "requested", name, email },
       { status: 201 }
     );
   } catch (err) {
