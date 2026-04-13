@@ -13,6 +13,7 @@ import {
   IconGlobe,
   IconClock,
 } from "@/components/icons";
+import { EVENTS, logAnalyticsEvent } from "@/lib/analytics-events";
 
 interface BookingContext {
   leadId: string;
@@ -136,6 +137,11 @@ function BookContent() {
       }
 
       const { url } = await res.json();
+      void logAnalyticsEvent(EVENTS.BOOKING_CHECKOUT_INITIATED, {
+        source: ctx?.source || "direct",
+        has_token: Boolean(token),
+        challenge: ctx?.challengeArea || formChallenge || undefined,
+      });
       window.location.href = url;
     } catch (err) {
       setCheckoutError(

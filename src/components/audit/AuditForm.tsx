@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { IconArrowRight } from "@/components/icons";
 import { CHALLENGE_OPTIONS } from "@/lib/constants";
+import { EVENTS, logAnalyticsEvent } from "@/lib/analytics-events";
 
 export function AuditForm({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
@@ -35,6 +36,11 @@ export function AuditForm({ compact = false }: { compact?: boolean }) {
       }
 
       const { jobId } = await res.json();
+      void logAnalyticsEvent(EVENTS.AUDIT_FORM_SUBMITTED, {
+        store_url: payload.storeUrl,
+        email_domain: payload.email.split("@")[1],
+        challenge: payload.challenge,
+      });
       router.push(`/audit/processing?jobId=${jobId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { IconArrowRight, IconCheck, IconMail } from "@/components/icons";
+import { EVENTS, logAnalyticsEvent } from "@/lib/analytics-events";
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -30,6 +31,9 @@ export default function ContactPage() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Failed to send. Please try again.");
+      void logAnalyticsEvent(EVENTS.CONTACT_FORM_SUBMITTED, {
+        has_subject: Boolean(payload.subject),
+      });
       setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

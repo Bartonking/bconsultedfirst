@@ -39,6 +39,7 @@ import type {
   ServiceIntakeQuestionConfig,
   ServiceIntakeStepId,
 } from "@/lib/types";
+import { EVENTS, logAnalyticsEvent } from "@/lib/analytics-events";
 
 interface ServiceIntakeContext {
   engagementId: string;
@@ -753,6 +754,9 @@ function ServiceIntakeContent() {
         throw new Error(body.error || "Unable to submit intake");
       }
 
+      void logAnalyticsEvent(EVENTS.INTAKE_FORM_SUBMITTED, {
+        engagement_id: body?.engagement?.id,
+      });
       setSubmitted(true);
       setContext((current) =>
         current
@@ -817,6 +821,9 @@ function ServiceIntakeContent() {
   const activeGoalCount = Object.values(wizard.goalResponses).filter((value) =>
     Boolean(normalizeText(value))
   ).length;
+  const completedStepCount = STEP_ORDER.filter(
+    (stepId) => completionMap[stepId]
+  ).length;
   const selectedGoalLabels = currentStep === "goals"
     ? context.config.questions.goals.options
         .filter((option) => normalizeText(wizard.goalResponses[option.id]))
@@ -857,12 +864,26 @@ function ServiceIntakeContent() {
           </div>
         ) : (
           <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-            <aside className="xl:sticky xl:top-28 xl:self-start">
+            <aside className="hidden xl:sticky xl:top-28 xl:order-1 xl:block xl:self-start">
               <div className="rounded-2xl bg-section-alt p-6">
-                <p className="text-3xl font-bold text-foreground">Engagement</p>
-                <p className="mt-1 text-sm text-muted">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+                  Engagement
+                </p>
+                <p className="mt-3 text-3xl font-bold text-foreground">
                   {completionMap.goals ? "Reviewing" : "In progress"}
                 </p>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  {completedStepCount} of {STEP_ORDER.length} steps completed
+                </p>
+
+                <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/80">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{
+                      width: `${(completedStepCount / STEP_ORDER.length) * 100}%`,
+                    }}
+                  />
+                </div>
 
                 <div className="mt-8 space-y-2">
                   {STEP_ORDER.map((stepId, index) => {
@@ -913,16 +934,16 @@ function ServiceIntakeContent() {
               </div>
             </aside>
 
-            <div className="rounded-2xl border border-border bg-white p-6 shadow-sm md:p-10">
+            <div className="order-1 rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6 md:p-8 xl:order-2 xl:p-10">
               <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="mb-2 text-sm font-semibold uppercase tracking-[0.22em] text-primary">
                     Step {currentStepNumber} of {STEP_ORDER.length}
                   </p>
-                  <h1 className="text-4xl font-bold text-foreground md:text-5xl">
+                  <h1 className="text-3xl font-bold text-foreground sm:text-4xl md:text-5xl">
                     {currentQuestion.title}
                   </h1>
-                  <p className="mt-4 max-w-3xl text-lg leading-relaxed text-muted">
+                  <p className="mt-3 max-w-3xl text-base leading-relaxed text-muted md:mt-4 md:text-lg">
                     {currentQuestion.subtitle}
                   </p>
                   <p className="mt-3 text-sm font-medium text-muted">
@@ -938,6 +959,113 @@ function ServiceIntakeContent() {
                 >
                   {savingDraft ? "Saving..." : "Save & Exit"}
                 </button>
+              </div>
+
+              <div className="mb-8 xl:hidden">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-sm font-semibold text-foreground">
+                    Progress
+                  </p>
+                  <p className="text-sm text-muted">
+                    {completedStepCount}/{STEP_ORDER.length} complete
+                  </p>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-section-alt">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{
+                      width: `${(completedStepCount / STEP_ORDER.length) * 100}%`,
+                    }}
+                  />
+                </div>
+                <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
+                  {STEP_ORDER.map((stepId, index) => {
+                    const isCurrent = stepId === currentStep;
+                    const isComplete = completionMap[stepId];
+
+                    return (
+                      <button
+                        key={stepId}
+                        type="button"
+                        onClick={() => {
+                          setCurrentStepIndex(index);
+                          setStepError(null);
+                        }}
+                        className={`shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                          isCurrent
+                            ? "border-primary bg-primary text-white"
+                            : isComplete
+                              ? "border-primary/20 bg-primary/5 text-primary"
+                              : "border-border bg-white text-muted"
+                        }`}
+                      >
+                        {STEP_LABELS[stepId]}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <details className="mt-4 overflow-hidden rounded-2xl border border-border bg-section-alt/50">
+                  <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-foreground">
+                    Engagement summary
+                  </summary>
+                  <div className="border-t border-border px-4 py-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl bg-white px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                          Store
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-foreground">
+                          {context.siteUrl}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                          Status
+                        </p>
+                        <p className="mt-1 text-sm font-semibold capitalize text-foreground">
+                          {context.status.replace(/_/g, " ")}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                          Bottlenecks
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-foreground">
+                          {selectedBottleneckCount}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                          Goal Areas
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-foreground">
+                          {activeGoalCount}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-xl bg-white px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                        Current answers
+                      </p>
+                      <div className="mt-3 space-y-3 text-sm">
+                        <p className="text-foreground">
+                          <span className="font-semibold text-muted">Team:</span>{" "}
+                          {teamSizeSummary}
+                        </p>
+                        <p className="text-foreground">
+                          <span className="font-semibold text-muted">Systems:</span>{" "}
+                          {systemsSummary}
+                        </p>
+                        <p className="text-foreground">
+                          <span className="font-semibold text-muted">Goals:</span>{" "}
+                          {goalsSummary}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </details>
               </div>
 
               {currentStep === "teamSize" && (
@@ -959,14 +1087,14 @@ function ServiceIntakeContent() {
                                 : current
                             )
                           }
-                          className={`rounded-2xl border p-6 text-left transition-colors ${
+                          className={`flex h-full flex-col rounded-2xl border p-5 text-left transition-colors sm:p-6 ${
                             selected
                               ? "border-primary bg-primary/5 shadow-sm"
                               : "border-border hover:border-primary/40"
                           }`}
                         >
-                          <div className="mb-5 flex items-center justify-between gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <div className="mb-4 flex items-center justify-between gap-4 sm:mb-5">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-12 sm:w-12">
                               {iconForKey(option.iconKey)}
                             </div>
                             <span
@@ -979,10 +1107,10 @@ function ServiceIntakeContent() {
                               {selected && <IconCheck className="h-4 w-4" />}
                             </span>
                           </div>
-                          <p className="text-2xl font-bold text-foreground">
+                          <p className="text-xl font-bold text-foreground sm:text-2xl">
                             {option.label}
                           </p>
-                          <p className="mt-2 text-base leading-relaxed text-muted">
+                          <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">
                             {option.description}
                           </p>
                         </button>
@@ -1012,7 +1140,7 @@ function ServiceIntakeContent() {
                           currentQuestion.detailPlaceholder ||
                           "Add context that would help us understand your setup."
                         }
-                        className="w-full resize-none rounded-xl border border-border px-5 py-4 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full resize-none rounded-xl border border-border px-4 py-3 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary sm:px-5 sm:py-4"
                       />
                     </div>
                   )}
@@ -1042,14 +1170,14 @@ function ServiceIntakeContent() {
                                 : current
                             )
                           }
-                          className={`rounded-2xl border p-5 text-left transition-colors ${
+                          className={`flex h-full flex-col rounded-2xl border p-4 text-left transition-colors sm:p-5 ${
                             selected
                               ? "border-primary bg-primary/5"
                               : "border-border hover:border-primary/40"
                           }`}
                         >
                           <div className="mb-4 flex items-center justify-between gap-4">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-11 sm:w-11">
                               {iconForKey(option.iconKey)}
                             </div>
                             {selected && (
@@ -1058,7 +1186,7 @@ function ServiceIntakeContent() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xl font-bold text-foreground">
+                          <p className="text-lg font-bold text-foreground sm:text-xl">
                             {option.label}
                           </p>
                           <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -1092,7 +1220,7 @@ function ServiceIntakeContent() {
                             currentQuestion.customInputPlaceholder ||
                             "Describe another fulfillment model"
                           }
-                          className="w-full rounded-xl border border-border px-5 py-4 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                          className="w-full rounded-xl border border-border px-4 py-3 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary sm:px-5 sm:py-4"
                         />
                       </div>
                     )}
@@ -1119,7 +1247,7 @@ function ServiceIntakeContent() {
                             currentQuestion.detailPlaceholder ||
                             "Add context on exceptions and friction points."
                           }
-                          className="w-full resize-none rounded-xl border border-border px-5 py-4 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                          className="w-full resize-none rounded-xl border border-border px-4 py-3 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary sm:px-5 sm:py-4"
                         />
                       </div>
                     )}
@@ -1129,7 +1257,7 @@ function ServiceIntakeContent() {
 
               {currentStep === "systems" && (
                 <>
-                  <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
                     {getActiveOptions(currentQuestion).map((option) => {
                       const selected = wizard.systemsOptionIds.includes(option.id);
                       return (
@@ -1150,14 +1278,14 @@ function ServiceIntakeContent() {
                                 : current
                             )
                           }
-                          className={`rounded-2xl border p-7 text-left transition-colors ${
+                          className={`flex h-full flex-col rounded-2xl border p-5 text-left transition-colors sm:p-6 xl:p-7 ${
                             selected
                               ? "border-primary bg-primary/5 shadow-sm"
                               : "border-border hover:border-primary/40"
                           }`}
                         >
-                          <div className="mb-5 flex items-center justify-between gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <div className="mb-4 flex items-center justify-between gap-4 sm:mb-5">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-12 sm:w-12">
                               {iconForKey(option.iconKey)}
                             </div>
                             {selected && (
@@ -1166,10 +1294,10 @@ function ServiceIntakeContent() {
                               </span>
                             )}
                           </div>
-                          <p className="text-2xl font-bold text-foreground">
+                          <p className="text-xl font-bold text-foreground sm:text-2xl">
                             {option.label}
                           </p>
-                          <p className="mt-2 text-base leading-relaxed text-muted">
+                          <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">
                             {option.description}
                           </p>
                         </button>
@@ -1177,14 +1305,14 @@ function ServiceIntakeContent() {
                     })}
 
                     {currentQuestion.allowCustom && (
-                      <div className="rounded-2xl border border-dashed border-border p-7">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <div className="rounded-2xl border border-dashed border-border p-5 sm:p-6 xl:p-7">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-12 sm:w-12">
                           <span className="text-2xl font-semibold">+</span>
                         </div>
-                        <p className="mt-5 text-2xl font-bold text-foreground">
+                        <p className="mt-4 text-xl font-bold text-foreground sm:mt-5 sm:text-2xl">
                           Other
                         </p>
-                        <p className="mt-2 text-base leading-relaxed text-muted">
+                        <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">
                           Add a platform that is specific to your stack.
                         </p>
                         <input
@@ -1204,7 +1332,7 @@ function ServiceIntakeContent() {
                             currentQuestion.customInputPlaceholder ||
                             "Specify another system"
                           }
-                          className="mt-5 w-full rounded-xl border border-border px-4 py-3 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                          className="mt-4 w-full rounded-xl border border-border px-4 py-3 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary sm:mt-5"
                         />
                       </div>
                     )}
@@ -1232,7 +1360,7 @@ function ServiceIntakeContent() {
                           currentQuestion.detailPlaceholder ||
                           "Add context on integrations and brittle handoffs."
                         }
-                        className="w-full resize-none rounded-xl border border-border px-5 py-4 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full resize-none rounded-xl border border-border px-4 py-3 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary sm:px-5 sm:py-4"
                       />
                     </div>
                   )}
@@ -1241,7 +1369,7 @@ function ServiceIntakeContent() {
 
               {currentStep === "bottlenecks" && (
                 <>
-                  <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_360px]">
                     <div>
                       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -1284,7 +1412,7 @@ function ServiceIntakeContent() {
                                     : current
                                 )
                               }
-                              className={`rounded-2xl border p-5 text-left transition-colors ${
+                              className={`flex h-full flex-col rounded-2xl border p-4 text-left transition-colors sm:p-5 ${
                                 selected
                                   ? "border-primary bg-primary text-white"
                                   : "border-border bg-white hover:border-primary/40"
@@ -1306,8 +1434,8 @@ function ServiceIntakeContent() {
                                   </span>
                                 )}
                               </div>
-                              <div className="mt-5">
-                                <span className="block text-lg font-semibold">
+                              <div className="mt-4 sm:mt-5">
+                                <span className="block text-base font-semibold sm:text-lg">
                                   {option.label}
                                 </span>
                                 <span
@@ -1360,11 +1488,11 @@ function ServiceIntakeContent() {
                         </div>
                       )}
 
-                      <div className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                          Throughput View
-                        </p>
-                        <p className="mt-3 text-2xl font-bold text-foreground">
+                        <div className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:p-6">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                            Throughput View
+                          </p>
+                        <p className="mt-3 text-xl font-bold text-foreground sm:text-2xl">
                           Surface the blockers before they calcify into routine.
                         </p>
                         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
@@ -1379,7 +1507,7 @@ function ServiceIntakeContent() {
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground">
                           {currentQuestion.customInputLabel || "Add custom bottleneck"}
                         </p>
-                        <div className="mt-4 flex gap-3">
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                           <input
                             type="text"
                             value={wizard.bottleneckCustomInput}
@@ -1421,7 +1549,7 @@ function ServiceIntakeContent() {
                                   : current
                               );
                             }}
-                            className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent"
+                            className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent sm:min-w-[88px]"
                           >
                             Add
                           </button>
@@ -1465,12 +1593,12 @@ function ServiceIntakeContent() {
 
               {currentStep === "goals" && (
                 <>
-                  <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-5">
+                  <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
                     <div>
                       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
                         Final Phase
                       </p>
-                      <p className="mt-2 text-base leading-relaxed text-muted">
+                      <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">
                         Define the outcomes that should shape the audit recommendations.
                       </p>
                     </div>
@@ -1487,22 +1615,22 @@ function ServiceIntakeContent() {
                       return (
                         <div
                           key={option.id}
-                          className={`rounded-2xl border p-6 transition-colors ${
+                          className={`rounded-2xl border p-5 transition-colors sm:p-6 ${
                             active
                               ? "border-primary bg-primary/5 shadow-sm"
                               : "border-border bg-white"
                           }`}
                         >
-                          <div className="flex items-start justify-between gap-4">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div className="flex items-start gap-4">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-12 sm:w-12">
                                 {iconForKey(option.iconKey)}
                               </div>
                               <div>
-                                <p className="text-2xl font-bold text-foreground">
+                                <p className="text-xl font-bold text-foreground sm:text-2xl">
                                   {option.label}
                                 </p>
-                                <p className="mt-1 text-base leading-relaxed text-muted">
+                                <p className="mt-1 text-sm leading-relaxed text-muted sm:text-base">
                                   {option.description}
                                 </p>
                               </div>
@@ -1524,7 +1652,7 @@ function ServiceIntakeContent() {
                                   };
                                 })
                               }
-                              className={`flex h-8 w-8 items-center justify-center rounded-full border text-lg font-semibold ${
+                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-lg font-semibold ${
                                 active
                                   ? "border-primary bg-primary text-white"
                                   : "border-border text-muted"
@@ -1559,7 +1687,7 @@ function ServiceIntakeContent() {
                                   option.placeholder ||
                                   "Describe the result you want to reach."
                                 }
-                                className="w-full resize-none rounded-xl border border-border px-5 py-4 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="w-full resize-none rounded-xl border border-border px-4 py-3 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary sm:px-5 sm:py-4"
                               />
                             </div>
                           )}
@@ -1619,7 +1747,7 @@ function ServiceIntakeContent() {
                     )}
 
                     {currentQuestion.allowCustom && (
-                      <div className="rounded-2xl border border-dashed border-border bg-section-alt/40 p-6">
+                      <div className="rounded-2xl border border-dashed border-border bg-section-alt/40 p-5 sm:p-6">
                         <button
                           type="button"
                           onClick={() => {
@@ -1641,7 +1769,7 @@ function ServiceIntakeContent() {
                         >
                           +
                         </button>
-                        <p className="text-xl font-bold text-foreground">
+                        <p className="text-lg font-bold text-foreground sm:text-xl">
                           {currentQuestion.customInputLabel || "Define Custom Objective"}
                         </p>
                         <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -1664,7 +1792,7 @@ function ServiceIntakeContent() {
                             currentQuestion.customInputPlaceholder ||
                             "Add another goal area"
                           }
-                          className="mt-4 w-full rounded-xl border border-border px-5 py-4 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                          className="mt-4 w-full rounded-xl border border-border px-4 py-3 text-base text-foreground placeholder-muted/50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary sm:px-5 sm:py-4"
                         />
                       </div>
                     )}
@@ -1672,7 +1800,7 @@ function ServiceIntakeContent() {
                 </>
               )}
 
-              <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-6">
+              <div className="mt-10 flex flex-col gap-4 border-t border-border pt-6 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <button
                   type="button"
                   onClick={() => {
@@ -1686,7 +1814,7 @@ function ServiceIntakeContent() {
                   &larr; Go Back
                 </button>
 
-                <div className="flex-1 text-center text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+                <div className="text-center text-xs font-semibold uppercase tracking-[0.22em] text-muted sm:flex-1">
                   {STEP_LABELS[currentStep]}
                 </div>
 
@@ -1694,7 +1822,7 @@ function ServiceIntakeContent() {
                   type="button"
                   onClick={() => void handleContinue()}
                   disabled={savingDraft || submitting}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent disabled:opacity-60"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent disabled:opacity-60 sm:w-auto"
                 >
                   {currentStepIndex === STEP_ORDER.length - 1
                     ? submitting
@@ -1718,28 +1846,49 @@ function ServiceIntakeContent() {
               )}
             </div>
 
-            <aside className="xl:sticky xl:top-28 xl:self-start">
+            <aside className="hidden xl:sticky xl:top-28 xl:order-3 xl:block xl:self-start">
               <div className="space-y-4">
                 <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-                  <h2 className="mb-4 text-2xl font-bold text-foreground">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
                     Current engagement
+                  </p>
+                  <h2 className="mt-3 text-2xl font-bold text-foreground">
+                    Audit context
                   </h2>
-                  <div className="space-y-3 text-sm">
-                    <p className="text-foreground">
-                      <span className="text-muted">Store:</span> {context.siteUrl}
-                    </p>
-                    <p className="text-foreground">
-                      <span className="text-muted">Email:</span> {context.email}
-                    </p>
-                    <p className="text-foreground">
-                      <span className="text-muted">Status:</span>{" "}
-                      {context.status.replace(/_/g, " ")}
-                    </p>
-                    {context.meetingAt && (
-                      <p className="text-foreground">
-                        <span className="text-muted">Session:</span>{" "}
-                        {new Date(context.meetingAt).toLocaleString()}
+                  <div className="mt-5 grid gap-3">
+                    <div className="rounded-xl bg-section-alt px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                        Store
                       </p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">
+                        {context.siteUrl}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-section-alt px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                        Email
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">
+                        {context.email}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-section-alt px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                        Status
+                      </p>
+                      <p className="mt-1 text-sm font-semibold capitalize text-foreground">
+                        {context.status.replace(/_/g, " ")}
+                      </p>
+                    </div>
+                    {context.meetingAt && (
+                      <div className="rounded-xl bg-section-alt px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                          Session
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-foreground">
+                          {new Date(context.meetingAt).toLocaleString()}
+                        </p>
+                      </div>
                     )}
                     {context.meetingUrl && (
                       <a
@@ -1755,8 +1904,8 @@ function ServiceIntakeContent() {
                   </div>
 
                   {context.prioritySummary && (
-                    <div className="mt-5 rounded-xl bg-primary/5 p-4">
-                      <p className="text-sm font-semibold text-foreground">
+                    <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
                         Current focus
                       </p>
                       <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">
@@ -1777,6 +1926,25 @@ function ServiceIntakeContent() {
                       </p>
                       <p className="text-sm text-muted">
                         {storeLabel}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mb-6 grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-section-alt px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                        Bottlenecks
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-foreground">
+                        {selectedBottleneckCount}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-section-alt px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                        Goal Areas
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-foreground">
+                        {activeGoalCount}
                       </p>
                     </div>
                   </div>
