@@ -94,6 +94,14 @@ export function IconUsers({ className = "w-6 h-6" }: { className?: string }) {
   );
 }
 
+export function IconUser({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5a3.75 3.75 0 00-7.5 0m7.5 0a9 9 0 10-7.5 0m7.5 0H8.25M15 7.5a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+
 export function IconShoppingBag({ className = "w-6 h-6" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -170,6 +178,23 @@ export function IconWarning({ className = "w-6 h-6" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+    </svg>
+  );
+}
+
+export function IconCogs({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9.25 6.75a2.5 2.5 0 115 0 2.5 2.5 0 01-5 0zM4.5 17a2.25 2.25 0 114.5 0 2.25 2.25 0 01-4.5 0zM14.75 16.5a3 3 0 116 0 3 3 0 01-6 0zM7.25 8.2l-1.1.65m10.2-1.1l1.05-.7M8.9 15.55l5.2-1.3m-1.55-6.3l2.55 5.25"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M11.75 2.75v1.5m0 5v1.5M8.95 3.95l1.05 1.05m3.5 3.5l1.05 1.05M7.75 6.75h1.5m5 0h1.5M8.95 9.55L10 8.5m3.5-3.5l1.05-1.05M6.75 13.25v1.25m0 5v1.25M3.5 17h1.25m4 0H10M5.05 15.3l.9.9m1.6 1.6l.9.9M5.05 18.7l.9-.9m1.6-1.6l.9-.9M17.75 11.5v1.75m0 6v1.75M13.75 16.5h1.75m4.5 0h1.75M15.05 13.8l1.25 1.25m3.15 3.15l1.25 1.25M15.05 19.2l1.25-1.25m3.15-3.15l1.25-1.25"
+      />
     </svg>
   );
 }

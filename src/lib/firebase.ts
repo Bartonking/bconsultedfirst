@@ -43,6 +43,11 @@ export function getDb(): Firestore {
   }
 
   db = getFirestore(app!);
+  try {
+    db.settings({ ignoreUndefinedProperties: true });
+  } catch {
+    // settings() can only be called once per Firestore instance; ignore if already set
+  }
   return db;
 }
 
@@ -52,5 +57,7 @@ export const COLLECTIONS = {
   auditJobs: "auditJobs",
   auditReports: "auditReports",
   consultations: "consultations",
+  auditEngagements: "auditEngagements",
+  serviceIntakeConfigs: "serviceIntakeConfigs",
   contactMessages: "contactMessages",
 } as const;

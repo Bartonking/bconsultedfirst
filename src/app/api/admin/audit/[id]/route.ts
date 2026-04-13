@@ -1,6 +1,12 @@
 import type { NextRequest } from "next/server";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
-import type { AuditReport, AuditJob, Lead, Consultation } from "@/lib/types";
+import type {
+  AuditReport,
+  AuditJob,
+  Lead,
+  Consultation,
+  AuditEngagement,
+} from "@/lib/types";
 
 export async function GET(
   _req: NextRequest,
@@ -15,6 +21,7 @@ export async function GET(
     let job: AuditJob | null = null;
     let lead: Lead | null = null;
     let consultation: Consultation | null = null;
+    let engagement: AuditEngagement | null = null;
 
     // Try as reportId
     const reportDoc = await db
@@ -25,7 +32,8 @@ export async function GET(
     if (reportDoc.exists) {
       report = reportDoc.data() as AuditReport;
       // Exclude HTML from response
-      const { reportHtml: _, ...reportData } = report;
+      const { reportHtml, ...reportData } = report;
+      void reportHtml;
       report = reportData as AuditReport;
 
       // Get the job
@@ -51,7 +59,8 @@ export async function GET(
             .get();
           if (rDoc.exists) {
             const rData = rDoc.data() as AuditReport;
-            const { reportHtml: _, ...rest } = rData;
+            const { reportHtml, ...rest } = rData;
+            void reportHtml;
             report = rest as AuditReport;
           }
         }
@@ -63,7 +72,6 @@ export async function GET(
     }
 
     // Get lead
-    const leadId = job?.leadId || report?.jobId;
     if (job?.leadId) {
       const leadDoc = await db
         .collection(COLLECTIONS.leads)
@@ -84,9 +92,31 @@ export async function GET(
       if (!conSnap.empty) {
         consultation = conSnap.docs[0].data() as Consultation;
       }
+
+      if (consultation) {
+        const engagementSnap = await db
+          .collection(COLLECTIONS.auditEngagements)
+          .where("consultationId", "==", consultation.id)
+          .limit(1)
+          .get();
+        if (!engagementSnap.empty) {
+          engagement = engagementSnap.docs[0].data() as AuditEngagement;
+        }
+      }
+
+      if (!engagement && report) {
+        const reportEngagementSnap = await db
+          .collection(COLLECTIONS.auditEngagements)
+          .where("reportId", "==", report.id)
+          .limit(1)
+          .get();
+        if (!reportEngagementSnap.empty) {
+          engagement = reportEngagementSnap.docs[0].data() as AuditEngagement;
+        }
+      }
     }
 
-    return Response.json({ report, job, lead, consultation });
+    return Response.json({ report, job, lead, consultation, engagement });
   } catch (err) {
     console.error("GET /api/admin/audit/[id] error:", err);
     return Response.json(

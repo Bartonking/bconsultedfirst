@@ -1,0 +1,159 @@
+import type { NextRequest } from "next/server";
+import { getDb, COLLECTIONS } from "@/lib/firebase";
+import { updateAuditEngagementSchema } from "@/lib/validation";
+import type {
+  AuditEngagement,
+  AuditReport,
+  Consultation,
+  Lead,
+} from "@/lib/types";
+
+function normalizeIntakeResponses(
+  intake?: AuditEngagement["intakeResponses"]
+): AuditEngagement["intakeResponses"] {
+  if (!intake) return {};
+
+  const teamSize = intake.teamSize?.trim();
+  const fulfillmentSetup = intake.fulfillmentSetup?.trim();
+  const systems = intake.systems?.trim();
+  const topProblems =
+    intake.topProblems
+      ?.map((item) => item.trim())
+      .filter(Boolean) || [];
+  const goals = intake.goals?.trim();
+
+  return {
+    ...(teamSize ? { teamSize } : {}),
+    ...(fulfillmentSetup ? { fulfillmentSetup } : {}),
+    ...(systems ? { systems } : {}),
+    ...(topProblems.length > 0 ? { topProblems } : {}),
+    ...(goals ? { goals } : {}),
+  };
+}
+
+export async function GET(
+  _req: NextRequest,
+  ctx: RouteContext<"/api/admin/services/[id]">
+) {
+  try {
+    const { id } = await ctx.params;
+    const db = getDb();
+
+    const engagementDoc = await db
+      .collection(COLLECTIONS.auditEngagements)
+      .doc(id)
+      .get();
+
+    if (!engagementDoc.exists) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const engagement = engagementDoc.data() as AuditEngagement;
+
+    const [leadDoc, consultationDoc, reportDoc] = await Promise.all([
+      db.collection(COLLECTIONS.leads).doc(engagement.leadId).get(),
+      engagement.consultationId
+        ? db
+            .collection(COLLECTIONS.consultations)
+            .doc(engagement.consultationId)
+            .get()
+        : Promise.resolve(null),
+      engagement.reportId
+        ? db.collection(COLLECTIONS.auditReports).doc(engagement.reportId).get()
+        : Promise.resolve(null),
+    ]);
+
+    const lead = leadDoc.exists ? (leadDoc.data() as Lead) : null;
+    const consultation =
+      consultationDoc && consultationDoc.exists
+        ? (consultationDoc.data() as Consultation)
+        : null;
+    let report =
+      reportDoc && reportDoc.exists ? (reportDoc.data() as AuditReport) : null;
+
+    if (report) {
+      const { reportHtml, ...reportData } = report;
+      void reportHtml;
+      report = reportData as AuditReport;
+    }
+
+    return Response.json({ engagement, lead, consultation, report });
+  } catch (err) {
+    console.error("GET /api/admin/services/[id] error:", err);
+    return Response.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  ctx: RouteContext<"/api/admin/services/[id]">
+) {
+  try {
+    const { id } = await ctx.params;
+    const body = await request.json();
+    const parsed = updateAuditEngagementSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return Response.json(
+        { error: "Validation failed", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const db = getDb();
+    const docRef = db.collection(COLLECTIONS.auditEngagements).doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const current = doc.data() as AuditEngagement;
+    const data = parsed.data;
+    const patch: Partial<AuditEngagement> = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (data.status !== undefined) patch.status = data.status;
+    if (data.owner !== undefined) patch.owner = data.owner.trim() || undefined;
+    if (data.meetingAt !== undefined) patch.meetingAt = data.meetingAt || undefined;
+    if (data.meetingUrl !== undefined) {
+      patch.meetingUrl = data.meetingUrl.trim() || undefined;
+    }
+    if (data.meetingNotes !== undefined) patch.meetingNotes = data.meetingNotes;
+    if (data.intakeResponses !== undefined) {
+      patch.intakeResponses = normalizeIntakeResponses(data.intakeResponses);
+    }
+    if (data.internalNotes !== undefined) patch.internalNotes = data.internalNotes;
+    if (data.prioritySummary !== undefined) {
+      patch.prioritySummary = data.prioritySummary;
+    }
+    if (data.finalReportFormat !== undefined) {
+      patch.finalReportFormat = data.finalReportFormat;
+    }
+    if (data.finalReportHtml !== undefined) {
+      patch.finalReportHtml = data.finalReportHtml;
+    }
+    if (data.finalReportUrl !== undefined) {
+      patch.finalReportUrl = data.finalReportUrl.trim() || undefined;
+    }
+
+    await docRef.update(patch);
+
+    return Response.json({
+      engagement: {
+        ...current,
+        ...patch,
+      },
+    });
+  } catch (err) {
+    console.error("PATCH /api/admin/services/[id] error:", err);
+    return Response.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

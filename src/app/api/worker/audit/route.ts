@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     };
 
     // Render HTML
-    const html = renderReportHtml(report, { email: lead.email, name: lead.storeName });
+    const html = renderReportHtml(report, { email: lead.email, name: lead.storeName, leadId: lead.id });
     report.reportHtml = html;
 
     // Store report in Firestore

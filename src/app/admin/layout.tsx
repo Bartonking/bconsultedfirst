@@ -3,11 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/layout/Logo";
-import { IconChart, IconUsers, IconCalendar } from "@/components/icons";
+import {
+  IconCalendar,
+  IconChart,
+  IconClipboard,
+  IconCogs,
+} from "@/components/icons";
 
 const ADMIN_NAV = [
   { label: "Dashboard", href: "/admin", icon: IconChart },
   { label: "Consultations", href: "/admin/consultations", icon: IconCalendar },
+  { label: "Services", href: "/admin/services", icon: IconClipboard },
+  { label: "Intake Config", href: "/admin/services/config", icon: IconCogs },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

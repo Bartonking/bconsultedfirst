@@ -1,28 +1,39 @@
 import { getDb, COLLECTIONS } from "@/lib/firebase";
-import type { Lead, Consultation } from "@/lib/types";
+import type { Lead, Consultation, AuditEngagement } from "@/lib/types";
 
 export async function GET() {
   try {
     const db = getDb();
 
-    const [consultationsSnap, leadsSnap] = await Promise.all([
+    const [consultationsSnap, leadsSnap, engagementsSnap] = await Promise.all([
       db.collection(COLLECTIONS.consultations).limit(100).get(),
       db.collection(COLLECTIONS.leads).limit(100).get(),
+      db.collection(COLLECTIONS.auditEngagements).limit(100).get(),
     ]);
 
     const consultations = consultationsSnap.docs.map(
       (doc) => doc.data() as Consultation
     );
     const leads = leadsSnap.docs.map((doc) => doc.data() as Lead);
+    const engagements = engagementsSnap.docs.map(
+      (doc) => doc.data() as AuditEngagement
+    );
 
     const leadsById = new Map<string, Lead>();
     for (const lead of leads) {
       leadsById.set(lead.id, lead);
     }
+    const engagementByConsultationId = new Map<string, AuditEngagement>();
+    for (const engagement of engagements) {
+      if (engagement.consultationId) {
+        engagementByConsultationId.set(engagement.consultationId, engagement);
+      }
+    }
 
     const consultationsWithLeads = consultations.map((con) => ({
       consultation: con,
       lead: leadsById.get(con.leadId) || null,
+      engagement: engagementByConsultationId.get(con.id) || null,
     }));
 
     return Response.json({ consultations: consultationsWithLeads });

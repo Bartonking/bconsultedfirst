@@ -4,9 +4,10 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AuditScoreBar } from "@/components/audit/AuditScoreBar";
 import { AuditFinding } from "@/components/audit/AuditFinding";
-import { IconArrowRight, IconCheck, IconMail } from "@/components/icons";
+import { IconArrowRight, IconCheck, IconMail, IconWarning } from "@/components/icons";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
-import type { AuditReport } from "@/lib/types";
+import { createBookingToken } from "@/lib/booking-token";
+import type { AuditReport, AuditJob } from "@/lib/types";
 
 async function getReport(id: string): Promise<AuditReport | null> {
   try {
@@ -16,6 +17,21 @@ async function getReport(id: string): Promise<AuditReport | null> {
     return doc.data() as AuditReport;
   } catch (err) {
     console.error("Failed to fetch report:", err);
+    return null;
+  }
+}
+
+async function getJobForReport(reportId: string): Promise<AuditJob | null> {
+  try {
+    const db = getDb();
+    const snapshot = await db
+      .collection(COLLECTIONS.auditJobs)
+      .where("reportId", "==", reportId)
+      .limit(1)
+      .get();
+    if (snapshot.empty) return null;
+    return snapshot.docs[0].data() as AuditJob;
+  } catch {
     return null;
   }
 }
@@ -31,6 +47,20 @@ export default async function AuditResultsPage({
   if (!report) {
     notFound();
   }
+
+  // Get the job to find the leadId for tokenized booking link and email status
+  const job = await getJobForReport(id);
+  let bookUrl = "/book";
+  if (job?.leadId) {
+    const token = createBookingToken({
+      leadId: job.leadId,
+      reportId: id,
+      source: "results_page",
+    });
+    bookUrl = `/book?token=${encodeURIComponent(token)}`;
+  }
+
+  const emailStatus = job?.emailStatus;
 
   const scoreColor =
     report.overallScore >= 70 ? "text-primary" : report.overallScore >= 50 ? "text-amber-500" : "text-red-500";
@@ -98,16 +128,38 @@ export default async function AuditResultsPage({
             </ul>
           </div>
 
-          {/* Report sent confirmation */}
-          <div className="bg-primary-pale rounded-xl p-6 flex items-center gap-4 mb-12">
-            <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
-              <IconMail className="w-5 h-5 text-primary" />
+          {/* Report email status */}
+          {emailStatus === "sent" ? (
+            <div className="bg-primary-pale rounded-xl p-6 flex items-center gap-4 mb-12">
+              <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <IconMail className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm">Full report sent to your email</p>
+                <p className="text-xs text-muted">Check your inbox for the complete report with all findings and recommendations.</p>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-foreground text-sm">Full report sent to your email</p>
-              <p className="text-xs text-muted">Check your inbox for the complete report with all findings and recommendations.</p>
+          ) : emailStatus === "failed" ? (
+            <div className="bg-amber-50 rounded-xl p-6 flex items-center gap-4 mb-12">
+              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <IconWarning className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm">We couldn&apos;t email the report</p>
+                <p className="text-xs text-muted">Please use the on-screen results above. You can also bookmark this page to return later.</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-primary-pale rounded-xl p-6 flex items-center gap-4 mb-12">
+              <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <IconMail className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm">Report ready</p>
+                <p className="text-xs text-muted">We&apos;re sending the full report to your email. Bookmark this page as a backup.</p>
+              </div>
+            </div>
+          )}
 
           {/* Consultation CTA */}
           <div className="bg-primary rounded-xl p-8 md:p-12 text-center">
@@ -119,7 +171,7 @@ export default async function AuditResultsPage({
               review findings with a specialist and create an improvement plan.
             </p>
             <Link
-              href="/book"
+              href={bookUrl}
               className="inline-flex items-center justify-center gap-2 bg-white text-primary px-8 py-3.5 rounded-lg text-base font-semibold hover:bg-primary-pale transition-colors"
             >
               Book a Consultation <IconArrowRight className="w-4 h-4" />

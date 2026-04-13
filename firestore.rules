@@ -25,6 +25,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Audit Engagements — server-only
+    match /auditEngagements/{engagementId} {
+      allow read, write: if false;
+    }
+
+    // Service Intake Configs — server-only
+    match /serviceIntakeConfigs/{configId} {
+      allow read, write: if false;
+    }
+
     // Contact Messages — server-only
     match /contactMessages/{msgId} {
       allow read, write: if false;

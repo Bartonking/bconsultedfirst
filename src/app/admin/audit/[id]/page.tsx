@@ -1,24 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AuditScoreBar } from "@/components/audit/AuditScoreBar";
 import { AuditFinding } from "@/components/audit/AuditFinding";
 import { IconArrowRight } from "@/components/icons";
-import type { AuditReport, Lead, AuditJob, Consultation } from "@/lib/types";
+import type {
+  AuditReport,
+  Lead,
+  AuditJob,
+  Consultation,
+  AuditEngagement,
+} from "@/lib/types";
 
 interface AdminAuditData {
   report: AuditReport | null;
   lead: Lead | null;
   job: AuditJob | null;
   consultation: Consultation | null;
+  engagement: AuditEngagement | null;
 }
 
 export default function AdminAuditReview() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [data, setData] = useState<AdminAuditData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [creatingService, setCreatingService] = useState(false);
+  const [serviceError, setServiceError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!params.id) return;
@@ -48,7 +58,52 @@ export default function AdminAuditReview() {
     );
   }
 
-  const { report, lead, consultation } = data;
+  const { report, lead, consultation, engagement } = data;
+
+  async function handleOpenOrCreateService() {
+    if (engagement) {
+      router.push(`/admin/services/${engagement.id}`);
+      return;
+    }
+
+    if (!lead) {
+      setServiceError("Lead data is missing for this audit.");
+      return;
+    }
+
+    setCreatingService(true);
+    setServiceError(null);
+
+    try {
+      const res = await fetch("/api/admin/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leadId: lead.id,
+          consultationId: consultation?.id,
+          reportId: report.id,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to create service");
+      }
+
+      const json = await res.json();
+      const nextEngagement = json.engagement as AuditEngagement;
+      setData((current) =>
+        current ? { ...current, engagement: nextEngagement } : current
+      );
+      router.push(`/admin/services/${nextEngagement.id}`);
+    } catch (err) {
+      setServiceError(
+        err instanceof Error ? err.message : "Failed to create service"
+      );
+    } finally {
+      setCreatingService(false);
+    }
+  }
 
   return (
     <div className="p-6 md:p-10">
@@ -131,6 +186,19 @@ export default function AdminAuditReview() {
           <div className="bg-white border border-border rounded-xl p-6">
             <h3 className="font-bold text-foreground mb-4">Actions</h3>
             <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => void handleOpenOrCreateService()}
+                disabled={creatingService}
+                className="w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium bg-primary text-white hover:bg-accent transition-colors flex items-center justify-between disabled:opacity-60"
+              >
+                {engagement
+                  ? "Open Full Audit Service"
+                  : creatingService
+                    ? "Starting Full Audit..."
+                    : "Start Full Audit Service"}
+                <IconArrowRight className="w-4 h-4" />
+              </button>
               <button className="w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium bg-primary text-white hover:bg-accent transition-colors flex items-center justify-between">
                 Mark as Contacted <IconArrowRight className="w-4 h-4" />
               </button>
@@ -141,6 +209,9 @@ export default function AdminAuditReview() {
                 Re-run Audit
               </button>
             </div>
+            {serviceError && (
+              <p className="mt-3 text-sm text-red-600">{serviceError}</p>
+            )}
           </div>
 
           {consultation && (
@@ -161,6 +232,24 @@ export default function AdminAuditReview() {
               {consultation.notes && (
                 <p className="text-sm text-muted mt-1">{consultation.notes}</p>
               )}
+            </div>
+          )}
+
+          {engagement && (
+            <div className="bg-white border border-border rounded-xl p-6">
+              <h3 className="font-bold text-foreground mb-3">Full Audit Service</h3>
+              <p className="text-sm text-muted mb-3">
+                Status:{" "}
+                <span className="font-medium text-foreground">
+                  {engagement.status.replace(/_/g, " ")}
+                </span>
+              </p>
+              <Link
+                href={`/admin/services/${engagement.id}`}
+                className="text-xs font-medium text-primary hover:text-accent"
+              >
+                Open service engagement
+              </Link>
             </div>
           )}
         </div>

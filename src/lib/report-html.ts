@@ -1,4 +1,5 @@
 import type { AuditReport } from "./types";
+import { createBookingToken } from "./booking-token";
 
 function scoreColor(score: number): string {
   if (score >= 70) return "#398860";
@@ -19,15 +20,25 @@ function severityColor(severity: string): { bg: string; text: string } {
 
 export function renderReportHtml(
   report: AuditReport,
-  leadInfo?: { email: string; name?: string }
+  leadInfo?: { email: string; name?: string; leadId?: string }
 ): string {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://bconsultedfirst.com";
 
-  const bookParams = new URLSearchParams();
-  if (leadInfo?.email) bookParams.set("email", leadInfo.email);
-  if (leadInfo?.name) bookParams.set("name", leadInfo.name);
-  bookParams.set("storeUrl", report.storeUrl);
-  const bookUrl = `${baseUrl}/book${bookParams.size ? "?" + bookParams.toString() : ""}`;
+  let bookUrl: string;
+  if (leadInfo?.leadId) {
+    const token = createBookingToken({
+      leadId: leadInfo.leadId,
+      reportId: report.id,
+      source: "audit_email",
+    });
+    bookUrl = `${baseUrl}/book?token=${encodeURIComponent(token)}`;
+  } else {
+    const bookParams = new URLSearchParams();
+    if (leadInfo?.email) bookParams.set("email", leadInfo.email);
+    if (leadInfo?.name) bookParams.set("name", leadInfo.name);
+    bookParams.set("storeUrl", report.storeUrl);
+    bookUrl = `${baseUrl}/book${bookParams.size ? "?" + bookParams.toString() : ""}`;
+  }
 
   const categoryRows = report.categories
     .map(
