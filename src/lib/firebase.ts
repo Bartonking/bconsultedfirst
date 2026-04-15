@@ -64,5 +64,6 @@ export const COLLECTIONS = {
   eventAutomationRuns: "eventAutomationRuns",
   eventDeadLetters: "eventDeadLetters",
   serviceIntakeConfigs: "serviceIntakeConfigs",
+  siteConfig: "siteConfig",
   contactMessages: "contactMessages",
 } as const;

@@ -3,6 +3,7 @@ import { COLLECTIONS, getDb } from "@/lib/firebase";
 import { sendReportEmail } from "@/lib/email";
 import { renderReportHtml } from "@/lib/report-html";
 import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
+import { getBookingSiteConfig } from "@/lib/site-config";
 import type { AuditEngagement, AuditJob, AuditReport, Lead } from "@/lib/types";
 
 export async function POST(
@@ -45,13 +46,16 @@ export async function POST(
 
     const lead = leadDoc.data() as Lead;
     const report = reportDoc.data() as AuditReport;
-    const html =
-      report.reportHtml ||
-      renderReportHtml(report, {
+    const bookingConfig = await getBookingSiteConfig();
+    const html = renderReportHtml(
+      report,
+      {
         email: lead.email,
         name: lead.storeName,
         leadId: lead.id,
-      });
+      },
+      bookingConfig
+    );
 
     const emailResult = await sendReportEmail(lead.email, report, html);
 

@@ -10,6 +10,3 @@ export function getStripe(): Stripe {
   }
   return stripe;
 }
-
-export const CONSULTATION_PRICE_CENTS = 5000;
-export const CONSULTATION_CURRENCY = "usd";

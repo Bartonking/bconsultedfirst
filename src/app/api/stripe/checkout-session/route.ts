@@ -1,8 +1,9 @@
 import { nanoid } from "nanoid";
 import { verifyBookingToken } from "@/lib/booking-token";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
-import { getStripe, CONSULTATION_PRICE_CENTS, CONSULTATION_CURRENCY } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
+import { getBookingSiteConfig } from "@/lib/site-config";
 import { checkoutSessionSchema } from "@/lib/validation";
 import type { Lead, Consultation } from "@/lib/types";
 
@@ -113,6 +114,11 @@ export async function POST(request: Request) {
       }
     }
 
+    const bookingConfig = await getBookingSiteConfig();
+    const consultationPriceCents = bookingConfig.consultationPriceCents;
+    const consultationCurrency =
+      bookingConfig.consultationCurrency.toLowerCase();
+
     // Create consultation
     const consultationId = `con-${nanoid(12)}`;
     const consultation: Consultation = {
@@ -120,8 +126,8 @@ export async function POST(request: Request) {
       leadId,
       consultationStatus: "requested",
       paymentStatus: "pending",
-      paymentAmount: CONSULTATION_PRICE_CENTS,
-      paymentCurrency: CONSULTATION_CURRENCY,
+      paymentAmount: consultationPriceCents,
+      paymentCurrency: consultationCurrency,
       source,
       reportId,
       notes: [
@@ -149,11 +155,11 @@ export async function POST(request: Request) {
       line_items: [
         {
           price_data: {
-            currency: CONSULTATION_CURRENCY,
-            unit_amount: CONSULTATION_PRICE_CENTS,
+            currency: consultationCurrency,
+            unit_amount: consultationPriceCents,
             product_data: {
               name: "bConsulted First — Shopify Operations Consultation",
-              description: "30-minute review with a specialist",
+              description: `${bookingConfig.consultationDurationMinutes}-minute review with a specialist`,
             },
           },
           quantity: 1,
@@ -184,8 +190,8 @@ export async function POST(request: Request) {
       },
       payload: {
         source,
-        amount: CONSULTATION_PRICE_CENTS,
-        currency: CONSULTATION_CURRENCY,
+        amount: consultationPriceCents,
+        currency: consultationCurrency,
         hasToken: Boolean(token),
       },
     });

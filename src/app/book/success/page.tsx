@@ -11,6 +11,10 @@ interface VerifyData {
   name: string;
   email: string;
   paid: boolean;
+  amountCents?: number;
+  currency?: string;
+  priceLabel?: string;
+  consultationDurationMinutes?: number;
 }
 
 function CalendlyEmbed({
@@ -60,16 +64,14 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(Boolean(sessionId));
+  const [error, setError] = useState<string | null>(
+    sessionId ? null : "Missing session ID. Please return to the booking page."
+  );
   const [data, setData] = useState<VerifyData | null>(null);
 
   useEffect(() => {
-    if (!sessionId) {
-      setError("Missing session ID. Please return to the booking page.");
-      setLoading(false);
-      return;
-    }
+    if (!sessionId) return;
 
     fetch(`/api/stripe/verify?session_id=${encodeURIComponent(sessionId)}`)
       .then(async (res) => {
@@ -131,7 +133,8 @@ function SuccessContent() {
             Payment confirmed
           </h1>
           <p className="text-muted text-lg">
-            Now pick a time for your 30-minute consultation.
+            Now pick a time for your{" "}
+            {data.consultationDurationMinutes || 30}-minute consultation.
           </p>
         </div>
 
@@ -153,7 +156,8 @@ function SuccessContent() {
               <span className="text-muted">Email:</span> {data.email}
             </p>
             <p className="text-foreground">
-              <span className="text-muted">Amount:</span> $50.00 USD
+              <span className="text-muted">Amount:</span>{" "}
+              {data.priceLabel || "$50"} {data.currency || "USD"}
             </p>
           </div>
         </div>

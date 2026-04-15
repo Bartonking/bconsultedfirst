@@ -3,11 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type {
+  BookingSiteConfig,
   ServiceIntakeConfig,
   ServiceIntakeOption,
   ServiceIntakeQuestionConfig,
   ServiceIntakeStepId,
 } from "@/lib/types";
+import {
+  DEFAULT_BOOKING_CONFIG,
+  getBookingPriceLabel,
+} from "@/lib/public-site-config";
 
 const SERVICE_INTAKE_STEP_ORDER: ServiceIntakeStepId[] = [
   "teamSize",
@@ -45,21 +50,33 @@ function createOption(stepId: ServiceIntakeStepId): ServiceIntakeOption {
 
 export default function ServiceIntakeConfigPage() {
   const [config, setConfig] = useState<ServiceIntakeConfig | null>(null);
+  const [bookingConfig, setBookingConfig] =
+    useState<BookingSiteConfig>(DEFAULT_BOOKING_CONFIG);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [bookingSaving, setBookingSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/service-intake-config")
-      .then(async (res) => {
+    Promise.all([
+      fetch("/api/admin/service-intake-config").then(async (res) => {
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || "Failed to load config");
+        return body.config as ServiceIntakeConfig;
+      }),
+      fetch("/api/admin/site-config/booking").then(async (res) => {
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(body.error || "Failed to load config");
+          throw new Error(body.error || "Failed to load booking config");
         }
-        return body.config as ServiceIntakeConfig;
+        return body.config as BookingSiteConfig;
+      }),
+    ])
+      .then(([nextConfig, nextBookingConfig]) => {
+        setConfig(nextConfig);
+        setBookingConfig(nextBookingConfig);
       })
-      .then((nextConfig) => setConfig(nextConfig))
       .catch((err) => {
         setSaveError(
           err instanceof Error ? err.message : "Failed to load config"
@@ -145,6 +162,34 @@ export default function ServiceIntakeConfigPage() {
     }
   }
 
+  async function handleSaveBookingConfig() {
+    setBookingSaving(true);
+    setSaveMessage(null);
+    setSaveError(null);
+
+    try {
+      const res = await fetch("/api/admin/site-config/booking", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookingConfig),
+      });
+
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.error || "Failed to save booking config");
+      }
+
+      setBookingConfig(body.config as BookingSiteConfig);
+      setSaveMessage("Booking config updated.");
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "Failed to save booking config"
+      );
+    } finally {
+      setBookingSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-6 md:p-10">
@@ -198,6 +243,129 @@ export default function ServiceIntakeConfigPage() {
           {saveError && <p className="text-sm text-red-600">{saveError}</p>}
         </div>
       )}
+
+      <section className="mb-8 rounded-xl border border-border bg-white p-6">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">
+              Booking Pricing
+            </h2>
+            <p className="text-sm text-muted">
+              Controls the consultation price shown on public pages and charged
+              in Stripe Checkout.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleSaveBookingConfig()}
+            disabled={bookingSaving}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent disabled:opacity-60"
+          >
+            {bookingSaving ? "Saving..." : "Save Booking Config"}
+          </button>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              Consultation Price
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={bookingConfig.consultationPriceCents / 100}
+              onChange={(e) =>
+                setBookingConfig((current) => ({
+                  ...current,
+                  consultationPriceCents: Math.round(
+                    Number(e.target.value || 0) * 100
+                  ),
+                }))
+              }
+              className="w-full rounded-lg border border-border px-4 py-3 text-sm text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <p className="mt-1 text-xs text-muted">
+              Current display: {getBookingPriceLabel(bookingConfig)}
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              Currency
+            </label>
+            <select
+              value={bookingConfig.consultationCurrency}
+              onChange={(e) =>
+                setBookingConfig((current) => ({
+                  ...current,
+                  consultationCurrency: e.target
+                    .value as BookingSiteConfig["consultationCurrency"],
+                }))
+              }
+              className="w-full rounded-lg border border-border bg-white px-4 py-3 text-sm text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="USD">USD</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              Duration Minutes
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={bookingConfig.consultationDurationMinutes}
+              onChange={(e) =>
+                setBookingConfig((current) => ({
+                  ...current,
+                  consultationDurationMinutes: Math.max(
+                    1,
+                    Math.round(Number(e.target.value || 1))
+                  ),
+                }))
+              }
+              className="w-full rounded-lg border border-border px-4 py-3 text-sm text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              CTA Label
+            </label>
+            <input
+              type="text"
+              value={bookingConfig.consultationCtaLabel}
+              onChange={(e) =>
+                setBookingConfig((current) => ({
+                  ...current,
+                  consultationCtaLabel: e.target.value,
+                }))
+              }
+              className="w-full rounded-lg border border-border px-4 py-3 text-sm text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              Consultation Description
+            </label>
+            <textarea
+              value={bookingConfig.consultationDescription}
+              onChange={(e) =>
+                setBookingConfig((current) => ({
+                  ...current,
+                  consultationDescription: e.target.value,
+                }))
+              }
+              rows={2}
+              className="w-full resize-none rounded-lg border border-border px-4 py-3 text-sm text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+        </div>
+      </section>
 
       <div className="space-y-6">
         {SERVICE_INTAKE_STEP_ORDER.map((stepId) => {

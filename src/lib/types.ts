@@ -53,6 +53,15 @@ export interface AuditFinding {
   severity: "low" | "medium" | "high";
 }
 
+export interface BookingSiteConfig {
+  consultationPriceCents: number;
+  consultationCurrency: "USD";
+  consultationDurationMinutes: number;
+  consultationCtaLabel: string;
+  consultationDescription: string;
+  updatedAt?: string;
+}
+
 export interface Consultation {
   id: string;
   leadId: string;

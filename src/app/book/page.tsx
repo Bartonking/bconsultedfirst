@@ -14,6 +14,11 @@ import {
   IconClock,
 } from "@/components/icons";
 import { EVENTS, logAnalyticsEvent } from "@/lib/analytics-events";
+import {
+  DEFAULT_BOOKING_CONFIG,
+  getBookingPriceLabel,
+} from "@/lib/public-site-config";
+import type { BookingSiteConfig } from "@/lib/types";
 
 interface BookingContext {
   leadId: string;
@@ -26,6 +31,8 @@ interface BookingContext {
   overallScore?: number;
 }
 
+type PublicBookingConfig = BookingSiteConfig & { priceLabel?: string };
+
 function BookContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -34,6 +41,8 @@ function BookContent() {
   const [ctx, setCtx] = useState<BookingContext | null>(null);
   const [ctxLoading, setCtxLoading] = useState(!!token);
   const [ctxError, setCtxError] = useState(false);
+  const [bookingConfig, setBookingConfig] =
+    useState<PublicBookingConfig>(DEFAULT_BOOKING_CONFIG);
 
   // Subscribe state
   const [subscribed, setSubscribed] = useState(false);
@@ -71,6 +80,20 @@ function BookContent() {
         setCtxLoading(false);
       });
   }, [token]);
+
+  useEffect(() => {
+    fetch("/api/site-config/booking")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load booking config");
+        return res.json();
+      })
+      .then((data) => {
+        setBookingConfig(data.config || DEFAULT_BOOKING_CONFIG);
+      })
+      .catch(() => {
+        setBookingConfig(DEFAULT_BOOKING_CONFIG);
+      });
+  }, []);
 
   async function handleSubscribe() {
     setSubscribing(true);
@@ -166,6 +189,8 @@ function BookContent() {
 
   const hasContext = !!ctx;
   const needsName = hasContext && !ctx?.storeName;
+  const bookingPriceLabel =
+    bookingConfig.priceLabel || getBookingPriceLabel(bookingConfig);
 
   return (
     <main className="flex-1 pt-32 pb-20 bg-background">
@@ -343,8 +368,9 @@ function BookContent() {
                 </h2>
               </div>
               <p className="text-sm text-muted leading-relaxed mb-6 flex-1">
-                30-minute session with a bConsulted operations specialist. Review
-                your audit findings and create an actionable improvement plan.
+                {bookingConfig.consultationDurationMinutes}-minute session with
+                a bConsulted operations specialist. Review your audit findings
+                and create an actionable improvement plan.
               </p>
               <div className="space-y-3 mb-6 text-sm">
                 <div className="flex items-center gap-2 text-muted">
@@ -353,7 +379,10 @@ function BookContent() {
                 </div>
                 <div className="flex items-center gap-2 text-muted">
                   <IconClock className="w-4 h-4 text-primary" />
-                  <span>30 minutes, focused on your store</span>
+                  <span>
+                    {bookingConfig.consultationDurationMinutes} minutes,
+                    focused on your store
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-muted">
                   <IconCheck className="w-4 h-4 text-primary" />
@@ -415,7 +444,8 @@ function BookContent() {
                   "Redirecting to payment..."
                 ) : (
                   <>
-                    Book Consultation &mdash; $50
+                    {bookingConfig.consultationCtaLabel} &mdash;{" "}
+                    {bookingPriceLabel}
                     <IconArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -437,7 +467,10 @@ function BookContent() {
                 <p className="font-semibold text-foreground mb-1">
                   No surprises
                 </p>
-                <p>One-time $50 payment. No subscription or hidden fees.</p>
+                <p>
+                  One-time {bookingPriceLabel} payment. No subscription or
+                  hidden fees.
+                </p>
               </div>
               <div>
                 <p className="font-semibold text-foreground mb-1">

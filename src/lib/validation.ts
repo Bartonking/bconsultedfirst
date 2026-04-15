@@ -158,4 +158,20 @@ export const updateServiceIntakeConfigSchema = z.object({
   questions: serviceIntakeQuestionsSchema,
 });
 
+export const updateBookingSiteConfigSchema = z.object({
+  consultationPriceCents: z
+    .number()
+    .int("Price must be a whole number of cents")
+    .min(0, "Price cannot be negative"),
+  consultationCurrency: z.literal("USD"),
+  consultationDurationMinutes: z
+    .number()
+    .int("Duration must be a whole number")
+    .positive("Duration must be greater than 0"),
+  consultationCtaLabel: z.string().min(1, "CTA label is required"),
+  consultationDescription: z
+    .string()
+    .min(1, "Consultation description is required"),
+});
+
 export { serviceIntakeQuestionConfigSchema, serviceIntakeOptionSchema, serviceIntakeStepSchema };

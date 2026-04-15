@@ -4,6 +4,7 @@ import { generateMockReport } from "@/lib/audit-generator";
 import { renderReportHtml } from "@/lib/report-html";
 import { sendReportEmail } from "@/lib/email";
 import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
+import { getBookingSiteConfig } from "@/lib/site-config";
 import type { AuditJob, AuditReport, Lead } from "@/lib/types";
 
 export async function processAuditJob(
@@ -51,11 +52,16 @@ export async function processAuditJob(
     createdAt: new Date().toISOString(),
   };
 
-  const html = renderReportHtml(report, {
-    email: lead.email,
-    name: lead.storeName,
-    leadId: lead.id,
-  });
+  const bookingConfig = await getBookingSiteConfig();
+  const html = renderReportHtml(
+    report,
+    {
+      email: lead.email,
+      name: lead.storeName,
+      leadId: lead.id,
+    },
+    bookingConfig
+  );
   report.reportHtml = html;
 
   await db.collection(COLLECTIONS.auditReports).doc(reportId).set(report);

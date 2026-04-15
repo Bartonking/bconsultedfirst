@@ -1,5 +1,9 @@
-import type { AuditReport } from "./types";
+import type { AuditReport, BookingSiteConfig } from "./types";
 import { createBookingToken } from "./booking-token";
+import {
+  DEFAULT_BOOKING_CONFIG,
+  getBookingPriceLabel,
+} from "./public-site-config";
 
 function scoreColor(score: number): string {
   if (score >= 70) return "#398860";
@@ -20,9 +24,11 @@ function severityColor(severity: string): { bg: string; text: string } {
 
 export function renderReportHtml(
   report: AuditReport,
-  leadInfo?: { email: string; name?: string; leadId?: string }
+  leadInfo?: { email: string; name?: string; leadId?: string },
+  bookingConfig: BookingSiteConfig = DEFAULT_BOOKING_CONFIG
 ): string {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://bconsultedfirst.com";
+  const priceLabel = getBookingPriceLabel(bookingConfig);
 
   let bookUrl: string;
   if (leadInfo?.leadId) {
@@ -142,7 +148,7 @@ export function renderReportHtml(
         Book a consultation to review findings with a specialist and create an improvement plan.
       </p>
       <a href="${bookUrl}" style="display:inline-block;background:#ffffff;color:#398860;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none;">
-        Book a Consultation
+        ${bookingConfig.consultationCtaLabel} - ${priceLabel}
       </a>
     </div>
 

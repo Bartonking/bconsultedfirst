@@ -7,6 +7,8 @@ import { AuditFinding } from "@/components/audit/AuditFinding";
 import { IconArrowRight, IconCheck, IconMail, IconWarning } from "@/components/icons";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { createBookingToken } from "@/lib/booking-token";
+import { getBookingSiteConfig } from "@/lib/site-config";
+import { getBookingPriceLabel } from "@/lib/public-site-config";
 import type { AuditReport, AuditJob } from "@/lib/types";
 
 async function getReport(id: string): Promise<AuditReport | null> {
@@ -61,6 +63,12 @@ export default async function AuditResultsPage({
   }
 
   const emailStatus = job?.emailStatus;
+  const bookingConfig = await getBookingSiteConfig();
+  const priceLabel = getBookingPriceLabel(bookingConfig);
+  const showFullReportOnPage = emailStatus === "failed";
+  const visibleFindings = showFullReportOnPage
+    ? report.findings
+    : report.findings.slice(0, 2);
 
   const scoreColor =
     report.overallScore >= 70 ? "text-primary" : report.overallScore >= 50 ? "text-amber-500" : "text-red-500";
@@ -103,30 +111,80 @@ export default async function AuditResultsPage({
             </div>
           </div>
 
-          {/* Findings */}
+          {/* Findings preview */}
           <div className="mb-8">
-            <h2 className="text-xl font-bold text-foreground mb-6">Key Findings</h2>
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-foreground">
+                  {showFullReportOnPage ? "Key Findings" : "Findings Preview"}
+                </h2>
+                {!showFullReportOnPage && (
+                  <p className="mt-1 text-sm text-muted">
+                    Your email includes the complete findings, detail, and recommendations.
+                  </p>
+                )}
+              </div>
+              {!showFullReportOnPage && report.findings.length > visibleFindings.length && (
+                <span className="rounded-full bg-primary-pale px-3 py-1 text-xs font-semibold text-primary">
+                  {report.findings.length - visibleFindings.length} more in email
+                </span>
+              )}
+            </div>
             <div className="space-y-4">
-              {report.findings.map((finding, i) => (
-                <AuditFinding key={i} finding={finding} />
-              ))}
+              {visibleFindings.map((finding, i) =>
+                showFullReportOnPage ? (
+                  <AuditFinding key={i} finding={finding} />
+                ) : (
+                  <div
+                    key={i}
+                    className="rounded-xl border border-border bg-card-bg p-6"
+                  >
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold uppercase text-primary">
+                        {finding.severity}
+                      </span>
+                      <span className="text-xs font-medium text-muted">
+                        {finding.category}
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {finding.observation}
+                    </p>
+                    <p className="mt-3 text-xs text-muted">
+                      The full email report includes why this matters and the recommended next step.
+                    </p>
+                  </div>
+                )
+              )}
             </div>
           </div>
 
           {/* Recommendations */}
-          <div className="bg-card-bg border border-border rounded-xl p-8 mb-8">
-            <h2 className="text-xl font-bold text-foreground mb-4">Recommended Next Steps</h2>
-            <ul className="space-y-3">
-              {report.recommendations.map((rec) => (
-                <li key={rec} className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <IconCheck className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <span className="text-sm text-foreground">{rec}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {showFullReportOnPage ? (
+            <div className="bg-card-bg border border-border rounded-xl p-8 mb-8">
+              <h2 className="text-xl font-bold text-foreground mb-4">Recommended Next Steps</h2>
+              <ul className="space-y-3">
+                {report.recommendations.map((rec) => (
+                  <li key={rec} className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <IconCheck className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <span className="text-sm text-foreground">{rec}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="bg-card-bg border border-border rounded-xl p-8 mb-8">
+              <h2 className="text-xl font-bold text-foreground mb-3">
+                Next step preview
+              </h2>
+              <p className="text-sm leading-relaxed text-muted">
+                Start with the highest-friction operational area from your full report,
+                then validate it against order flow, catalog structure, and reporting needs.
+              </p>
+            </div>
+          )}
 
           {/* Report email status */}
           {emailStatus === "sent" ? (
@@ -136,7 +194,7 @@ export default async function AuditResultsPage({
               </div>
               <div>
                 <p className="font-semibold text-foreground text-sm">Full report sent to your email</p>
-                <p className="text-xs text-muted">Check your inbox for the complete report with all findings and recommendations.</p>
+                <p className="text-xs text-muted">Check your inbox for the complete report with all findings, detailed context, and recommendations.</p>
               </div>
             </div>
           ) : emailStatus === "failed" ? (
@@ -167,14 +225,15 @@ export default async function AuditResultsPage({
               Want a deeper operational review?
             </h2>
             <p className="text-white/80 text-base leading-relaxed mb-8 max-w-xl mx-auto">
-              The preliminary audit gives you a starting point. Book a consultation to
-              review findings with a specialist and create an improvement plan.
+              {bookingConfig.consultationDurationMinutes}-minute paid review of your audit findings.
+              Leave with a clearer improvement plan for your Shopify operation.
             </p>
             <Link
               href={bookUrl}
               className="inline-flex items-center justify-center gap-2 bg-white text-primary px-8 py-3.5 rounded-lg text-base font-semibold hover:bg-primary-pale transition-colors"
             >
-              Book a Consultation <IconArrowRight className="w-4 h-4" />
+              {bookingConfig.consultationCtaLabel} - {priceLabel}
+              <IconArrowRight className="w-4 h-4" />
             </Link>
           </div>
 

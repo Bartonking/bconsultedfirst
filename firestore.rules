@@ -60,6 +60,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Site Config — server-only
+    match /siteConfig/{configId} {
+      allow read, write: if false;
+    }
+
     // Contact Messages — server-only
     match /contactMessages/{msgId} {
       allow read, write: if false;

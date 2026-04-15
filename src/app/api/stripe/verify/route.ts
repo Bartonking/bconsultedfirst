@@ -1,5 +1,7 @@
 import { getStripe } from "@/lib/stripe";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
+import { getBookingSiteConfig } from "@/lib/site-config";
+import { formatPriceFromCents } from "@/lib/public-site-config";
 import type { Consultation } from "@/lib/types";
 
 export async function GET(request: Request) {
@@ -45,6 +47,11 @@ export async function GET(request: Request) {
     }
 
     const consultation = doc.data() as Consultation;
+    const bookingConfig = await getBookingSiteConfig();
+    const amountCents =
+      session.amount_total ?? consultation.paymentAmount ?? bookingConfig.consultationPriceCents;
+    const currency =
+      (session.currency || consultation.paymentCurrency || "usd").toUpperCase();
 
     return Response.json({
       consultationId,
@@ -52,6 +59,10 @@ export async function GET(request: Request) {
       email: session.customer_email ?? "",
       paid: true,
       consultationStatus: consultation.consultationStatus,
+      amountCents,
+      currency,
+      priceLabel: formatPriceFromCents(amountCents, "USD"),
+      consultationDurationMinutes: bookingConfig.consultationDurationMinutes,
     });
   } catch (err) {
     console.error("GET /api/stripe/verify error:", err);
