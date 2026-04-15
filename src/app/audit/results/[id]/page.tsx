@@ -9,7 +9,7 @@ import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { createBookingToken } from "@/lib/booking-token";
 import { getBookingSiteConfig } from "@/lib/site-config";
 import { getBookingPriceLabel } from "@/lib/public-site-config";
-import type { AuditReport, AuditJob } from "@/lib/types";
+import type { AuditReport, AuditJob, Lead } from "@/lib/types";
 
 async function getReport(id: string): Promise<AuditReport | null> {
   try {
@@ -38,6 +38,17 @@ async function getJobForReport(reportId: string): Promise<AuditJob | null> {
   }
 }
 
+async function getLead(leadId: string): Promise<Lead | null> {
+  try {
+    const db = getDb();
+    const doc = await db.collection(COLLECTIONS.leads).doc(leadId).get();
+    if (!doc.exists) return null;
+    return doc.data() as Lead;
+  } catch {
+    return null;
+  }
+}
+
 export default async function AuditResultsPage({
   params,
 }: {
@@ -52,6 +63,8 @@ export default async function AuditResultsPage({
 
   // Get the job to find the leadId for tokenized booking link and email status
   const job = await getJobForReport(id);
+  const lead = job?.leadId ? await getLead(job.leadId) : null;
+  const reportEmail = lead?.email;
   let bookUrl = "/book";
   if (job?.leadId) {
     const token = createBookingToken({
@@ -194,7 +207,18 @@ export default async function AuditResultsPage({
               </div>
               <div>
                 <p className="font-semibold text-foreground text-sm">Full report sent to your email</p>
-                <p className="text-xs text-muted">Check your inbox for the complete report with all findings, detailed context, and recommendations.</p>
+                <p className="text-xs text-muted">
+                  Check{" "}
+                  {reportEmail ? (
+                    <span className="font-semibold text-foreground">
+                      {reportEmail}
+                    </span>
+                  ) : (
+                    "your inbox"
+                  )}{" "}
+                  for the complete report with all findings, detailed context,
+                  and recommendations.
+                </p>
               </div>
             </div>
           ) : emailStatus === "failed" ? (
@@ -214,7 +238,17 @@ export default async function AuditResultsPage({
               </div>
               <div>
                 <p className="font-semibold text-foreground text-sm">Report ready</p>
-                <p className="text-xs text-muted">We&apos;re sending the full report to your email. Bookmark this page as a backup.</p>
+                <p className="text-xs text-muted">
+                  We&apos;re sending the full report to{" "}
+                  {reportEmail ? (
+                    <span className="font-semibold text-foreground">
+                      {reportEmail}
+                    </span>
+                  ) : (
+                    "your email"
+                  )}
+                  . Bookmark this page as a backup.
+                </p>
               </div>
             </div>
           )}
