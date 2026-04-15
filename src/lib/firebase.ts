@@ -59,6 +59,7 @@ export const COLLECTIONS = {
   consultations: "consultations",
   auditEngagements: "auditEngagements",
   calendlyWebhookLogs: "calendlyWebhookLogs",
+  calndlybucket: "calndlybucket",
   serviceIntakeConfigs: "serviceIntakeConfigs",
   contactMessages: "contactMessages",
 } as const;

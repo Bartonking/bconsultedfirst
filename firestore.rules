@@ -35,6 +35,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Raw Calendly Bucket — server-only
+    match /calndlybucket/{eventId} {
+      allow read, write: if false;
+    }
+
     // Service Intake Configs — server-only
     match /serviceIntakeConfigs/{configId} {
       allow read, write: if false;

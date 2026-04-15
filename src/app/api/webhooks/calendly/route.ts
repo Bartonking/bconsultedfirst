@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import type {
   AuditEngagement,
+  CalendlyBucketEvent,
   CalendlyWebhookLog,
   Consultation,
   Lead,
@@ -98,6 +99,76 @@ async function writeCalendlyLog(
   }
 }
 
+async function writeCalendlyBucketEvent({
+  request,
+  body,
+}: {
+  request: Request;
+  body: string;
+}): Promise<void> {
+  const db = getDb();
+  const id = `cal-bucket-${nanoid(12)}`;
+  const signatureHeader = request.headers.get("Calendly-Webhook-Signature");
+
+  const rawEvent: CalendlyBucketEvent = {
+    id,
+    receivedAt: new Date().toISOString(),
+    method: request.method,
+    url: request.url,
+    userAgent: request.headers.get("user-agent"),
+    signatureHeader,
+    contentType: request.headers.get("content-type"),
+    rawBody: body,
+    bodySize: Buffer.byteLength(body, "utf8"),
+    parseStatus: "not_parsed",
+    eventType: null,
+    payloadEmail: null,
+    payloadName: null,
+    payloadUri: null,
+    payloadEventUri: null,
+    tracking: null,
+    payload: null,
+    parseError: null,
+  };
+
+  const docRef = db.collection(COLLECTIONS.calndlybucket).doc(id);
+  await docRef.set(sanitizeForFirestore(rawEvent) as Record<string, unknown>);
+
+  try {
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    const parsedPayload =
+      (parsed.payload as Record<string, unknown> | undefined) ?? null;
+
+    await docRef.update(
+      sanitizeForFirestore({
+        parseStatus: "parsed",
+        eventType: (parsed.event as string | undefined) ?? null,
+        payloadEmail: getInviteeEmail(parsedPayload),
+        payloadName: getInviteeName(parsedPayload),
+        payloadUri: (parsedPayload?.uri as string | undefined) ?? null,
+        payloadEventUri:
+          (parsedPayload?.event as string | undefined) ??
+          ((
+            parsedPayload?.scheduled_event as
+              | Record<string, unknown>
+              | undefined
+          )?.uri as string | undefined) ??
+          null,
+        tracking:
+          (parsedPayload?.tracking as Record<string, unknown> | undefined) ??
+          null,
+        payload: parsedPayload,
+        parseError: null,
+      }) as Record<string, unknown>
+    );
+  } catch (err) {
+    await docRef.update({
+      parseStatus: "parse_failed",
+      parseError: err instanceof Error ? err.message : "Unknown parse error",
+    });
+  }
+}
+
 function getConsultationSortDate(consultation: Consultation) {
   return consultation.paidAt || consultation.bookedAt || consultation.scheduledStartAt || "";
 }
@@ -148,6 +219,8 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.text();
+    await writeCalendlyBucketEvent({ request, body });
+
     const signature = request.headers.get("Calendly-Webhook-Signature");
     const signingKey = process.env.CALENDLY_WEBHOOK_SIGNING_KEY;
 

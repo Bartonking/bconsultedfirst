@@ -213,6 +213,27 @@ export interface CalendlyWebhookLog {
   payload?: Record<string, unknown>;
 }
 
+export interface CalendlyBucketEvent {
+  id: string;
+  receivedAt: string;
+  method: string;
+  url: string;
+  userAgent?: string | null;
+  signatureHeader?: string | null;
+  contentType?: string | null;
+  rawBody: string;
+  bodySize: number;
+  parseStatus: "not_parsed" | "parsed" | "parse_failed";
+  eventType?: string | null;
+  payloadEmail?: string | null;
+  payloadName?: string | null;
+  payloadUri?: string | null;
+  payloadEventUri?: string | null;
+  tracking?: Record<string, unknown> | null;
+  payload?: Record<string, unknown> | null;
+  parseError?: string | null;
+}
+
 // API request/response types
 export interface CreateAuditRequest {
   email: string;
