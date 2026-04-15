@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { updateAuditEngagementSchema } from "@/lib/validation";
+import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
 import type {
   AuditEngagement,
   AuditReport,
@@ -175,6 +176,22 @@ export async function PATCH(
     }
 
     await docRef.update(updatePayload);
+
+    await emitWorkflowEvent({
+      type: WORKFLOW_EVENTS.ADMIN_SERVICE_UPDATED,
+      source: "admin",
+      publish: false,
+      actor: { type: "admin" },
+      subject: {
+        leadId: current.leadId,
+        consultationId: current.consultationId,
+        engagementId: current.id,
+        reportId: current.reportId,
+      },
+      payload: {
+        updatedFields: Object.keys(updatePayload),
+      },
+    });
 
     return Response.json({
       engagement: {

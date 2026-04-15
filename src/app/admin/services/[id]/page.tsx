@@ -11,6 +11,7 @@ import type {
   AuditReport,
   Consultation,
   Lead,
+  WorkflowEvent,
 } from "@/lib/types";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -131,6 +132,7 @@ export default function AdminServiceDetailPage() {
   );
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [timelineEvents, setTimelineEvents] = useState<WorkflowEvent[]>([]);
 
   const [status, setStatus] = useState<AuditEngagement["status"]>(
     "intake_pending"
@@ -204,6 +206,15 @@ export default function AdminServiceDetailPage() {
   const lead = data?.lead || null;
   const consultation = data?.consultation || null;
   const report = data?.report || null;
+
+  useEffect(() => {
+    if (!engagement?.id) return;
+
+    fetch(`/api/admin/events?engagementId=${encodeURIComponent(engagement.id)}&limit=100`)
+      .then((res) => res.json())
+      .then((json) => setTimelineEvents(json.events || []))
+      .catch(() => setTimelineEvents([]));
+  }, [engagement?.id]);
 
   const bookingUrl = useMemo(() => {
     if (!consultation || !lead) return null;
@@ -1416,6 +1427,39 @@ export default function AdminServiceDetailPage() {
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-white p-6">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="font-bold text-foreground">Event Timeline</h3>
+              <Link
+                href={`/admin/events?engagementId=${engagement.id}`}
+                className="text-xs font-medium text-primary hover:text-accent"
+              >
+                View all
+              </Link>
+            </div>
+            {timelineEvents.length === 0 ? (
+              <p className="text-sm text-muted">No related events yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {timelineEvents.slice(0, 8).map((event) => (
+                  <Link
+                    key={event.id}
+                    href={`/admin/events/${event.id}`}
+                    className="block rounded-lg border border-border p-3 text-sm transition-colors hover:bg-gray-50"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium text-foreground">{event.type}</p>
+                      <span className="text-xs text-muted">{event.status}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted">
+                      {new Date(event.receivedAt).toLocaleString()}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

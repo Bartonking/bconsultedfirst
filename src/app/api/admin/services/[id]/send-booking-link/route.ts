@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { COLLECTIONS, getDb } from "@/lib/firebase";
 import { sendConsultationSchedulingEmail } from "@/lib/email";
+import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
 import type { AuditEngagement, Consultation, Lead } from "@/lib/types";
 
 export async function POST(
@@ -78,6 +79,20 @@ export async function POST(
     };
 
     await engagementRef.update(patch);
+
+    await emitWorkflowEvent({
+      type: WORKFLOW_EVENTS.ADMIN_BOOKING_EMAIL_SENT,
+      source: "admin",
+      publish: false,
+      actor: { type: "admin" },
+      subject: {
+        leadId: lead.id,
+        consultationId: consultation.id,
+        engagementId: engagement.id,
+        reportId: engagement.reportId,
+      },
+      payload: { sentAt: now },
+    });
 
     return Response.json({
       success: true,

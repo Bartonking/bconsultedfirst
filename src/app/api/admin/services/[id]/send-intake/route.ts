@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { COLLECTIONS, getDb } from "@/lib/firebase";
 import { sendFullAuditIntakeEmail } from "@/lib/email";
+import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
 import type { AuditEngagement, Lead } from "@/lib/types";
 
 export async function POST(
@@ -48,6 +49,20 @@ export async function POST(
     }
 
     await engagementRef.update(patch);
+
+    await emitWorkflowEvent({
+      type: WORKFLOW_EVENTS.AUDIT_FORM_REQUEST_SENT,
+      source: "admin",
+      publish: false,
+      actor: { type: "admin" },
+      subject: {
+        leadId: engagement.leadId,
+        consultationId: engagement.consultationId,
+        engagementId: engagement.id,
+        reportId: engagement.reportId,
+      },
+      payload: { sentAt: now, manual: true },
+    });
 
     return Response.json({
       success: true,

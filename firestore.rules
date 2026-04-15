@@ -40,6 +40,21 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Workflow Events — server-only
+    match /workflowEvents/{eventId} {
+      allow read, write: if false;
+    }
+
+    // Event Automation Runs — server-only
+    match /eventAutomationRuns/{runId} {
+      allow read, write: if false;
+    }
+
+    // Event Dead Letters — server-only
+    match /eventDeadLetters/{deadLetterId} {
+      allow read, write: if false;
+    }
+
     // Service Intake Configs — server-only
     match /serviceIntakeConfigs/{configId} {
       allow read, write: if false;

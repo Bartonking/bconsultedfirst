@@ -234,6 +234,17 @@ export interface CalendlyBucketEvent {
   parseError?: string | null;
 }
 
+export type {
+  EventAutomationRun,
+  EventDeadLetter,
+  WorkflowEvent,
+  WorkflowEventActor,
+  WorkflowEventSource,
+  WorkflowEventStatus,
+  WorkflowEventSubject,
+} from "@/lib/events/types";
+export type { WorkflowEventName } from "@/lib/events/names";
+
 // API request/response types
 export interface CreateAuditRequest {
   email: string;

@@ -1,6 +1,7 @@
 import { COLLECTIONS, getDb } from "@/lib/firebase";
 import { verifyServiceIntakeToken } from "@/lib/service-intake-token";
 import { submitServiceIntakeSchema } from "@/lib/validation";
+import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
 import type { AuditEngagement } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -58,6 +59,21 @@ export async function POST(request: Request) {
     }
 
     await engagementRef.update(patch);
+
+    await emitWorkflowEvent({
+      type: WORKFLOW_EVENTS.PRE_MEETING_FORM_SUBMITTED,
+      source: "server",
+      actor: { type: "lead", id: payload.leadId },
+      subject: {
+        leadId: payload.leadId,
+        engagementId: payload.engagementId,
+        consultationId: current.consultationId,
+        reportId: current.reportId,
+      },
+      payload: {
+        intakeResponses: patch.intakeResponses,
+      },
+    });
 
     return Response.json({
       success: true,

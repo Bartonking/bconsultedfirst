@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
-import { getDb, COLLECTIONS } from "@/lib/firebase";
+import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 
@@ -8,6 +8,17 @@ export async function POST(request: Request) {
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  await emitWorkflowEvent({
+    type: WORKFLOW_EVENTS.STRIPE_WEBHOOK_RECEIVED,
+    source: "stripe",
+    publish: false,
+    actor: { type: "webhook" },
+    payload: {
+      hasSignature: Boolean(signature),
+      bodySize: Buffer.byteLength(body, "utf8"),
+    },
+  });
 
   if (!signature || !webhookSecret) {
     return Response.json(
@@ -34,45 +45,35 @@ export async function POST(request: Request) {
       return Response.json({ error: "Missing metadata" }, { status: 400 });
     }
 
-    try {
-      const db = getDb();
-      const docRef = db
-        .collection(COLLECTIONS.consultations)
-        .doc(consultationId);
-      const doc = await docRef.get();
-
-      if (!doc.exists) {
-        console.error(
-          `Stripe webhook: consultation ${consultationId} not found`
-        );
-        return Response.json(
-          { error: "Consultation not found" },
-          { status: 404 }
-        );
-      }
-
-      // Idempotency: skip if already paid
-      const data = doc.data();
-      if (data?.paymentStatus === "paid") {
-        return Response.json({ received: true, status: "already_paid" });
-      }
-
-      await docRef.update({
-        consultationStatus: "paid",
-        paymentStatus: "paid",
-        paymentAmount: session.amount_total ?? null,
-        paymentCurrency: session.currency ?? null,
-        stripeCheckoutSessionId: session.id,
+    await emitWorkflowEvent({
+      type: WORKFLOW_EVENTS.STRIPE_CHECKOUT_COMPLETED,
+      source: "stripe",
+      idempotencyKey: `stripe_checkout_completed:${session.id}`,
+      actor: {
+        type: "webhook",
+        email: session.customer_email || undefined,
+      },
+      subject: {
+        consultationId,
+        leadId: session.metadata?.leadId || undefined,
+        reportId: session.metadata?.reportId || undefined,
+        stripeSessionId: session.id,
+      },
+      payload: {
+        stripeSessionId: session.id,
+        consultationId,
+        leadId: session.metadata?.leadId || null,
+        reportId: session.metadata?.reportId || null,
+        name: session.metadata?.name || null,
+        customerEmail: session.customer_email,
+        amountTotal: session.amount_total,
+        currency: session.currency,
         stripePaymentIntentId:
           typeof session.payment_intent === "string"
             ? session.payment_intent
             : session.payment_intent?.id ?? null,
-        paidAt: new Date().toISOString(),
-      });
-    } catch (err) {
-      console.error("Stripe webhook Firestore update error:", err);
-      return Response.json({ error: "Internal error" }, { status: 500 });
-    }
+      },
+    });
   }
 
   return Response.json({ received: true });

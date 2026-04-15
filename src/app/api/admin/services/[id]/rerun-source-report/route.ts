@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import type { NextRequest } from "next/server";
 import { COLLECTIONS, getDb } from "@/lib/firebase";
 import { processAuditJob } from "@/lib/process-audit-job";
+import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
 import type { AuditEngagement, AuditJob } from "@/lib/types";
 
 export async function POST(
@@ -40,6 +41,21 @@ export async function POST(
     };
 
     await engagementRef.update(patch);
+
+    await emitWorkflowEvent({
+      type: WORKFLOW_EVENTS.ADMIN_SOURCE_REPORT_RERUN,
+      source: "admin",
+      publish: false,
+      actor: { type: "admin" },
+      subject: {
+        leadId: engagement.leadId,
+        consultationId: engagement.consultationId,
+        engagementId: engagement.id,
+        reportId: report.id,
+        jobId,
+      },
+      payload: { previousReportId: engagement.reportId || null },
+    });
 
     if (engagement.consultationId) {
       const consultationRef = db

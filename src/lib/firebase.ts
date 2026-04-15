@@ -60,6 +60,9 @@ export const COLLECTIONS = {
   auditEngagements: "auditEngagements",
   calendlyWebhookLogs: "calendlyWebhookLogs",
   calndlybucket: "calndlybucket",
+  workflowEvents: "workflowEvents",
+  eventAutomationRuns: "eventAutomationRuns",
+  eventDeadLetters: "eventDeadLetters",
   serviceIntakeConfigs: "serviceIntakeConfigs",
   contactMessages: "contactMessages",
 } as const;

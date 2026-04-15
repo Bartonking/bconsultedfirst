@@ -3,6 +3,7 @@ import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { generateMockReport } from "@/lib/audit-generator";
 import { renderReportHtml } from "@/lib/report-html";
 import { sendReportEmail } from "@/lib/email";
+import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
 import type { AuditJob, AuditReport, Lead } from "@/lib/types";
 
 export async function processAuditJob(
@@ -33,6 +34,14 @@ export async function processAuditJob(
     startedAt,
   });
 
+  await emitWorkflowEvent({
+    type: WORKFLOW_EVENTS.AUDIT_JOB_PROCESSING,
+    source: "worker",
+    publish: false,
+    actor: { type: "system" },
+    subject: { leadId: lead.id, jobId: job.id },
+  });
+
   const reportData = generateMockReport(lead.siteUrl, lead.challengeArea);
   const reportId = `rpt-${nanoid(12)}`;
   const report: AuditReport = {
@@ -51,6 +60,18 @@ export async function processAuditJob(
 
   await db.collection(COLLECTIONS.auditReports).doc(reportId).set(report);
 
+  await emitWorkflowEvent({
+    type: WORKFLOW_EVENTS.AUDIT_REPORT_GENERATED,
+    source: "worker",
+    publish: false,
+    actor: { type: "system" },
+    subject: { leadId: lead.id, jobId: job.id, reportId },
+    payload: {
+      storeUrl: report.storeUrl,
+      overallScore: report.overallScore,
+    },
+  });
+
   const completedAt = new Date().toISOString();
   const completedJob: AuditJob = {
     ...job,
@@ -68,6 +89,14 @@ export async function processAuditJob(
     emailStatus: "pending",
   });
 
+  await emitWorkflowEvent({
+    type: WORKFLOW_EVENTS.AUDIT_JOB_COMPLETED,
+    source: "worker",
+    publish: false,
+    actor: { type: "system" },
+    subject: { leadId: lead.id, jobId: job.id, reportId },
+  });
+
   if (!sendEmail) {
     return { report, lead, job: completedJob };
   }
@@ -75,6 +104,18 @@ export async function processAuditJob(
   const emailResult = await sendReportEmail(lead.email, report, html);
   await jobRef.update({
     emailStatus: emailResult.success ? "sent" : "failed",
+  });
+
+  await emitWorkflowEvent({
+    type: WORKFLOW_EVENTS.AUDIT_REPORT_EMAIL_SENT,
+    source: "email",
+    publish: false,
+    actor: { type: "system" },
+    subject: { leadId: lead.id, jobId: job.id, reportId },
+    payload: {
+      success: emailResult.success,
+      error: emailResult.error || null,
+    },
   });
 
   return {

@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { verifyBookingToken } from "@/lib/booking-token";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { getStripe, CONSULTATION_PRICE_CENTS, CONSULTATION_CURRENCY } from "@/lib/stripe";
+import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
 import { checkoutSessionSchema } from "@/lib/validation";
 import type { Lead, Consultation } from "@/lib/types";
 
@@ -168,6 +169,25 @@ export async function POST(request: Request) {
       cancel_url: token
         ? `${baseUrl}/book?token=${encodeURIComponent(token)}&cancelled=true`
         : `${baseUrl}/book?cancelled=true`,
+    });
+
+    await emitWorkflowEvent({
+      type: WORKFLOW_EVENTS.BOOKING_CHECKOUT_INITIATED,
+      source: "server",
+      publish: false,
+      actor: { type: "lead", id: leadId, email },
+      subject: {
+        leadId,
+        consultationId,
+        reportId,
+        stripeSessionId: session.id,
+      },
+      payload: {
+        source,
+        amount: CONSULTATION_PRICE_CENTS,
+        currency: CONSULTATION_CURRENCY,
+        hasToken: Boolean(token),
+      },
     });
 
     return Response.json({ url: session.url }, { status: 201 });
