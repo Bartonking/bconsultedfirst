@@ -29,17 +29,91 @@ interface ServiceWithContext {
   report: AuditReport | null;
 }
 
+function getMeetingStatus(
+  engagement: AuditEngagement,
+  consultation: Consultation | null
+): string {
+  const meetingAt = engagement.meetingAt || consultation?.scheduledStartAt;
+
+  if (meetingAt) {
+    return new Date(meetingAt).toLocaleString();
+  }
+
+  if (consultation?.consultationStatus === "paid") {
+    return "Calendly booking pending";
+  }
+
+  if (consultation?.consultationStatus === "scheduled") {
+    return "Calendly booked, sync pending";
+  }
+
+  if (consultation?.consultationStatus === "cancelled") {
+    return "Cancelled";
+  }
+
+  return "-";
+}
+
 export default function ServicesPage() {
   const [data, setData] = useState<ServiceWithContext[]>([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"active" | "archived">("active");
+  const [rowBusyId, setRowBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/services")
+    setLoading(true);
+    fetch(`/api/admin/services?view=${view}`)
       .then((res) => res.json())
       .then((json) => setData(json.services || []))
       .catch(() => setData([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [view]);
+
+  async function handleArchive(id: string, archive: boolean) {
+    setRowBusyId(id);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/admin/services/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          archivedAt: archive ? new Date().toISOString() : null,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to update");
+      }
+      setData((current) => current.filter((d) => d.engagement.id !== id));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to update");
+    } finally {
+      setRowBusyId(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm("Permanently delete this engagement? This cannot be undone.")) {
+      return;
+    }
+    setRowBusyId(id);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/admin/services/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok && res.status !== 204) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to delete");
+      }
+      setData((current) => current.filter((d) => d.engagement.id !== id));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setRowBusyId(null);
+    }
+  }
 
   const stats = [
     { label: "Total Engagements", value: data.length },
@@ -65,6 +139,29 @@ export default function ServicesPage() {
           Track human-led audit engagements after the consultation.
         </p>
       </div>
+
+      <div className="mb-6 inline-flex rounded-lg border border-border bg-white p-1">
+        {(["active", "archived"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
+              view === v
+                ? "bg-primary text-white"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+
+      {actionError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {stats.map((stat) => (
@@ -141,9 +238,7 @@ export default function ServicesPage() {
                       {consultation?.consultationStatus || "-"}
                     </td>
                     <td className="px-6 py-4 text-sm text-muted">
-                      {engagement.meetingAt
-                        ? new Date(engagement.meetingAt).toLocaleString()
-                        : "-"}
+                      {getMeetingStatus(engagement, consultation)}
                     </td>
                     <td className="px-6 py-4 text-sm text-muted">
                       {engagement.finalReportSentAt
@@ -158,12 +253,43 @@ export default function ServicesPage() {
                       {new Date(engagement.updatedAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
-                      <Link
-                        href={`/admin/services/${engagement.id}`}
-                        className="text-xs font-medium text-primary hover:text-accent"
-                      >
-                        View
-                      </Link>
+                      <div className="flex flex-wrap gap-3">
+                        <Link
+                          href={`/admin/services/${engagement.id}`}
+                          className="text-xs font-medium text-primary hover:text-accent"
+                        >
+                          View
+                        </Link>
+                        {view === "active" ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleArchive(engagement.id, true)}
+                            disabled={rowBusyId === engagement.id}
+                            className="text-xs text-muted hover:text-foreground disabled:opacity-60"
+                          >
+                            Archive
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void handleArchive(engagement.id, false)}
+                              disabled={rowBusyId === engagement.id}
+                              className="text-xs text-blue-600 hover:underline disabled:opacity-60"
+                            >
+                              Unarchive
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDelete(engagement.id)}
+                              disabled={rowBusyId === engagement.id}
+                              className="text-xs text-red-600 hover:underline disabled:opacity-60"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -10,6 +10,8 @@ export interface Lead {
   marketingStatus?: "subscribed" | "unsubscribed";
   marketingSubscribedAt?: string;
   marketingSource?: string;
+
+  archivedAt?: string;
 }
 
 export interface AuditJob {
@@ -78,6 +80,8 @@ export interface Consultation {
 
   source?: "audit_email" | "results_page" | "direct";
   reportId?: string;
+
+  archivedAt?: string;
 }
 
 export interface AuditEngagement {
@@ -120,12 +124,16 @@ export interface AuditEngagement {
   finalReportFormat?: "html" | "pdf";
   finalReportHtml?: string;
   finalReportUrl?: string;
+  bookingLinkSentAt?: string;
+  sourceReportSentAt?: string;
   intakeEmailSentAt?: string;
   meetingConfirmationSentAt?: string;
   finalReportSentAt?: string;
 
   createdAt: string;
   updatedAt: string;
+
+  archivedAt?: string;
 }
 
 export type ServiceIntakeStepId =
@@ -165,6 +173,44 @@ export interface ServiceIntakeConfig {
   questions: Record<ServiceIntakeStepId, ServiceIntakeQuestionConfig>;
   updatedAt: string;
   updatedBy?: string;
+}
+
+export interface CalendlyWebhookLog {
+  id: string;
+  createdAt: string;
+  eventType: string;
+  result:
+    | "received"
+    | "missing_signature"
+    | "missing_signing_key"
+    | "invalid_signature"
+    | "missing_consultation_id"
+    | "consultation_not_found"
+    | "engagement_not_found"
+    | "synced"
+    | "cancelled"
+    | "ignored_reschedule_cancel"
+    | "error";
+  message?: string;
+  consultationId?: string | null;
+  matchedBy?: "utm_content" | "email_fallback" | "none";
+  engagementId?: string | null;
+  inviteeEmail?: string | null;
+  inviteeName?: string | null;
+  calendlyEventUri?: string | null;
+  calendlyInviteeUri?: string | null;
+  scheduledStartAt?: string | null;
+  scheduledEndAt?: string | null;
+  meetingUrl?: string | null;
+  tracking?: {
+    utm_source?: string | null;
+    utm_medium?: string | null;
+    utm_campaign?: string | null;
+    utm_content?: string | null;
+    utm_term?: string | null;
+    salesforce_uuid?: string | null;
+  };
+  payload?: Record<string, unknown>;
 }
 
 // API request/response types

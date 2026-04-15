@@ -85,6 +85,15 @@ const STEP_ORDER: ServiceIntakeStepId[] = [
   "goals",
 ];
 
+const PROGRESS_WIDTH_CLASS: Record<number, string> = {
+  0: "w-0",
+  1: "w-1/5",
+  2: "w-2/5",
+  3: "w-3/5",
+  4: "w-4/5",
+  5: "w-full",
+};
+
 const STEP_LABELS: Record<ServiceIntakeStepId, string> = {
   teamSize: "Team Size",
   fulfillmentSetup: "Fulfillment Setup",
@@ -876,12 +885,12 @@ function ServiceIntakeContent() {
                   {completedStepCount} of {STEP_ORDER.length} steps completed
                 </p>
 
-                <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/80">
+                <div
+                  className="mt-5 h-2 overflow-hidden rounded-full bg-white/80"
+                  aria-hidden="true"
+                >
                   <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{
-                      width: `${(completedStepCount / STEP_ORDER.length) * 100}%`,
-                    }}
+                    className={`h-full rounded-full bg-primary transition-all ${PROGRESS_WIDTH_CLASS[completedStepCount] ?? "w-0"}`}
                   />
                 </div>
 
@@ -970,12 +979,12 @@ function ServiceIntakeContent() {
                     {completedStepCount}/{STEP_ORDER.length} complete
                   </p>
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-section-alt">
+                <div
+                  className="mt-3 h-2 overflow-hidden rounded-full bg-section-alt"
+                  aria-hidden="true"
+                >
                   <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{
-                      width: `${(completedStepCount / STEP_ORDER.length) * 100}%`,
-                    }}
+                    className={`h-full rounded-full bg-primary transition-all ${PROGRESS_WIDTH_CLASS[completedStepCount] ?? "w-0"}`}
                   />
                 </div>
                 <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
@@ -1465,6 +1474,7 @@ function ServiceIntakeContent() {
                                 {item}
                                 <button
                                   type="button"
+                                  aria-label={`Remove ${item}`}
                                   onClick={() =>
                                     setWizard((current) =>
                                       current
@@ -1725,6 +1735,7 @@ function ServiceIntakeContent() {
                             </p>
                             <button
                               type="button"
+                              aria-label={`Remove ${goal}`}
                               onClick={() =>
                                 setWizard((current) =>
                                   current

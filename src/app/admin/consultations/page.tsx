@@ -24,14 +24,62 @@ export default function ConsultationsPage() {
   const [loading, setLoading] = useState(true);
   const [creatingId, setCreatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [view, setView] = useState<"active" | "archived">("active");
+  const [rowBusyId, setRowBusyId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/consultations")
+    setLoading(true);
+    fetch(`/api/admin/consultations?view=${view}`)
       .then((res) => res.json())
       .then((json) => setData(json.consultations || []))
       .catch(() => setData([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [view]);
+
+  async function handleArchive(id: string, archive: boolean) {
+    setRowBusyId(id);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/admin/consultations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          archivedAt: archive ? new Date().toISOString() : null,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to update");
+      }
+      setData((current) => current.filter((d) => d.consultation.id !== id));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to update");
+    } finally {
+      setRowBusyId(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm("Permanently delete this consultation? This cannot be undone.")) {
+      return;
+    }
+    setRowBusyId(id);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/admin/consultations/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok && res.status !== 204) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to delete");
+      }
+      setData((current) => current.filter((d) => d.consultation.id !== id));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setRowBusyId(null);
+    }
+  }
 
   async function handleOpenOrCreateService(item: ConsultationWithLead) {
     if (item.engagement) {
@@ -87,6 +135,23 @@ export default function ConsultationsPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground">Consultations</h1>
         <p className="text-sm text-muted">Track consultation requests and bookings.</p>
+      </div>
+
+      <div className="mb-6 inline-flex rounded-lg border border-border bg-white p-1">
+        {(["active", "archived"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
+              view === v
+                ? "bg-primary text-white"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            {v}
+          </button>
+        ))}
       </div>
 
       {/* Stats */}
@@ -168,6 +233,35 @@ export default function ConsultationsPage() {
                           {con.cancelUrl && (
                             <a href={con.cancelUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-red-600 hover:underline">Cancel</a>
                           )}
+                          </>
+                        )}
+                        {view === "active" ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleArchive(con.id, true)}
+                            disabled={rowBusyId === con.id}
+                            className="text-xs text-muted hover:text-foreground disabled:opacity-60"
+                          >
+                            Archive
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void handleArchive(con.id, false)}
+                              disabled={rowBusyId === con.id}
+                              className="text-xs text-blue-600 hover:underline disabled:opacity-60"
+                            >
+                              Unarchive
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDelete(con.id)}
+                              disabled={rowBusyId === con.id}
+                              className="text-xs text-red-600 hover:underline disabled:opacity-60"
+                            >
+                              Delete
+                            </button>
                           </>
                         )}
                       </div>

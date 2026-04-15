@@ -1,8 +1,10 @@
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import type { Lead, Consultation, AuditEngagement } from "@/lib/types";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const view = url.searchParams.get("view") || "active";
     const db = getDb();
 
     const [consultationsSnap, leadsSnap, engagementsSnap] = await Promise.all([
@@ -30,7 +32,13 @@ export async function GET() {
       }
     }
 
-    const consultationsWithLeads = consultations.map((con) => ({
+    const filteredConsultations = consultations.filter((c) => {
+      if (view === "archived") return !!c.archivedAt;
+      if (view === "all") return true;
+      return !c.archivedAt;
+    });
+
+    const consultationsWithLeads = filteredConsultations.map((con) => ({
       consultation: con,
       lead: leadsById.get(con.leadId) || null,
       engagement: engagementByConsultationId.get(con.id) || null,

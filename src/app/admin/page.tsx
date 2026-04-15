@@ -20,14 +20,59 @@ interface LeadWithJob {
 export default function AdminDashboard() {
   const [data, setData] = useState<LeadWithJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"active" | "archived">("active");
+  const [rowBusyId, setRowBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/leads")
+    setLoading(true);
+    fetch(`/api/admin/leads?view=${view}`)
       .then((res) => res.json())
       .then((json) => setData(json.leads || []))
       .catch(() => setData([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [view]);
+
+  async function handleArchive(id: string, archive: boolean) {
+    setRowBusyId(id);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/admin/leads/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          archivedAt: archive ? new Date().toISOString() : null,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to update");
+      }
+      setData((current) => current.filter((d) => d.lead.id !== id));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to update");
+    } finally {
+      setRowBusyId(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm("Permanently delete this lead? This cannot be undone.")) return;
+    setRowBusyId(id);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/admin/leads/${id}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to delete");
+      }
+      setData((current) => current.filter((d) => d.lead.id !== id));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setRowBusyId(null);
+    }
+  }
 
   const totalLeads = data.length;
   const completedAudits = data.filter((d) => d.job?.status === "complete").length;
@@ -45,6 +90,29 @@ export default function AdminDashboard() {
           <IconDownload className="w-4 h-4" /> Export CSV
         </button>
       </div>
+
+      <div className="mb-6 inline-flex rounded-lg border border-border bg-white p-1">
+        {(["active", "archived"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
+              view === v
+                ? "bg-primary text-white"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+
+      {actionError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -110,6 +178,35 @@ export default function AdminDashboard() {
                           <button className="inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-medium">
                             <IconRefresh className="w-3.5 h-3.5" /> Re-run
                           </button>
+                        )}
+                        {view === "active" ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleArchive(lead.id, true)}
+                            disabled={rowBusyId === lead.id}
+                            className="text-xs text-muted hover:text-foreground disabled:opacity-60"
+                          >
+                            Archive
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void handleArchive(lead.id, false)}
+                              disabled={rowBusyId === lead.id}
+                              className="text-xs text-blue-600 hover:underline disabled:opacity-60"
+                            >
+                              Unarchive
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDelete(lead.id)}
+                              disabled={rowBusyId === lead.id}
+                              className="text-xs text-red-600 hover:underline disabled:opacity-60"
+                            >
+                              Delete
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>

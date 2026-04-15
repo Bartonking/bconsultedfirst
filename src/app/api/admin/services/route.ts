@@ -8,8 +8,10 @@ import type {
   Lead,
 } from "@/lib/types";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const view = url.searchParams.get("view") || "active";
     const db = getDb();
 
     const [engagementsSnap, leadsSnap, consultationsSnap, reportsSnap] =
@@ -35,7 +37,13 @@ export async function GET() {
     );
     const reportsById = new Map(reports.map((report) => [report.id, report]));
 
-    const services = engagements.map((engagement) => ({
+    const filteredEngagements = engagements.filter((e) => {
+      if (view === "archived") return !!e.archivedAt;
+      if (view === "all") return true;
+      return !e.archivedAt;
+    });
+
+    const services = filteredEngagements.map((engagement) => ({
       engagement,
       lead: leadsById.get(engagement.leadId) || null,
       consultation:

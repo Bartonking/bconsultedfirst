@@ -30,6 +30,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Calendly Webhook Logs — server-only
+    match /calendlyWebhookLogs/{logId} {
+      allow read, write: if false;
+    }
+
     // Service Intake Configs — server-only
     match /serviceIntakeConfigs/{configId} {
       allow read, write: if false;

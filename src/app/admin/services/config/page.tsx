@@ -236,6 +236,7 @@ export default function ServiceIntakeConfigPage() {
                   </label>
                   <input
                     type="text"
+                    aria-label={`${STEP_LABELS[stepId]} title`}
                     value={question.title}
                     onChange={(e) =>
                       updateQuestion(stepId, (current) => ({
@@ -252,6 +253,7 @@ export default function ServiceIntakeConfigPage() {
                     Type
                   </label>
                   <select
+                    aria-label={`${STEP_LABELS[stepId]} type`}
                     value={question.type}
                     onChange={(e) =>
                       updateQuestion(stepId, (current) => ({
@@ -272,6 +274,7 @@ export default function ServiceIntakeConfigPage() {
                     Subtitle
                   </label>
                   <textarea
+                    aria-label={`${STEP_LABELS[stepId]} subtitle`}
                     value={question.subtitle}
                     onChange={(e) =>
                       updateQuestion(stepId, (current) => ({
@@ -320,6 +323,7 @@ export default function ServiceIntakeConfigPage() {
                       </label>
                       <input
                         type="text"
+                        aria-label={`${STEP_LABELS[stepId]} detail label`}
                         value={question.detailLabel || ""}
                         onChange={(e) =>
                           updateQuestion(stepId, (current) => ({
@@ -337,6 +341,7 @@ export default function ServiceIntakeConfigPage() {
                       </label>
                       <input
                         type="text"
+                        aria-label={`${STEP_LABELS[stepId]} detail placeholder`}
                         value={question.detailPlaceholder || ""}
                         onChange={(e) =>
                           updateQuestion(stepId, (current) => ({
@@ -358,6 +363,7 @@ export default function ServiceIntakeConfigPage() {
                       </label>
                       <input
                         type="text"
+                        aria-label={`${STEP_LABELS[stepId]} custom input label`}
                         value={question.customInputLabel || ""}
                         onChange={(e) =>
                           updateQuestion(stepId, (current) => ({
@@ -375,6 +381,7 @@ export default function ServiceIntakeConfigPage() {
                       </label>
                       <input
                         type="text"
+                        aria-label={`${STEP_LABELS[stepId]} custom input placeholder`}
                         value={question.customInputPlaceholder || ""}
                         onChange={(e) =>
                           updateQuestion(stepId, (current) => ({
@@ -415,6 +422,7 @@ export default function ServiceIntakeConfigPage() {
                         </label>
                         <input
                           type="text"
+                          aria-label="Option ID"
                           value={option.id}
                           onChange={(e) =>
                             updateOption(stepId, option.id, (current) => ({
@@ -432,6 +440,7 @@ export default function ServiceIntakeConfigPage() {
                         </label>
                         <input
                           type="text"
+                          aria-label="Option label"
                           value={option.label}
                           onChange={(e) =>
                             updateOption(stepId, option.id, (current) => ({
@@ -448,6 +457,7 @@ export default function ServiceIntakeConfigPage() {
                           Description
                         </label>
                         <textarea
+                          aria-label="Option description"
                           value={option.description}
                           onChange={(e) =>
                             updateOption(stepId, option.id, (current) => ({
@@ -466,6 +476,7 @@ export default function ServiceIntakeConfigPage() {
                         </label>
                         <input
                           type="text"
+                          aria-label="Option icon key"
                           value={option.iconKey}
                           onChange={(e) =>
                             updateOption(stepId, option.id, (current) => ({
@@ -482,6 +493,7 @@ export default function ServiceIntakeConfigPage() {
                           Source
                         </label>
                         <select
+                          aria-label="Option source"
                           value={option.source || "admin"}
                           onChange={(e) =>
                             updateOption(stepId, option.id, (current) => ({
@@ -518,6 +530,7 @@ export default function ServiceIntakeConfigPage() {
                             </label>
                             <input
                               type="text"
+                              aria-label="Option prompt label"
                               value={option.promptLabel || ""}
                               onChange={(e) =>
                                 updateOption(stepId, option.id, (current) => ({
@@ -535,6 +548,7 @@ export default function ServiceIntakeConfigPage() {
                             </label>
                             <input
                               type="text"
+                              aria-label="Option placeholder"
                               value={option.placeholder || ""}
                               onChange={(e) =>
                                 updateOption(stepId, option.id, (current) => ({

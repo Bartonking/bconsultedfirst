@@ -130,6 +130,7 @@ export const updateAuditEngagementSchema = z.object({
   finalReportFormat: z.enum(["html", "pdf"]).optional(),
   finalReportHtml: z.string().optional(),
   finalReportUrl: z.string().optional(),
+  archivedAt: z.string().nullable().optional(),
 });
 
 export const submitServiceIntakeSchema = z.object({

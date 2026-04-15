@@ -1,8 +1,10 @@
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import type { Lead, AuditJob } from "@/lib/types";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const view = url.searchParams.get("view") || "active";
     const db = getDb();
 
     const [leadsSnap, jobsSnap] = await Promise.all([
@@ -23,7 +25,13 @@ export async function GET() {
       jobsByLeadId.set(job.leadId, job);
     }
 
-    const leadsWithJobs = leads.map((lead) => ({
+    const filteredLeads = leads.filter((l) => {
+      if (view === "archived") return !!l.archivedAt;
+      if (view === "all") return true;
+      return !l.archivedAt;
+    });
+
+    const leadsWithJobs = filteredLeads.map((lead) => ({
       lead,
       job: jobsByLeadId.get(lead.id) || null,
     }));

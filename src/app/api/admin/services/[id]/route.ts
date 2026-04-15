@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { updateAuditEngagementSchema } from "@/lib/validation";
 import type {
@@ -140,8 +141,18 @@ export async function PATCH(
     if (data.finalReportUrl !== undefined) {
       patch.finalReportUrl = data.finalReportUrl.trim() || undefined;
     }
+    const updatePayload: Record<string, unknown> = { ...patch };
+    if (data.archivedAt !== undefined) {
+      if (data.archivedAt === null || data.archivedAt === "") {
+        updatePayload.archivedAt = FieldValue.delete();
+        patch.archivedAt = undefined;
+      } else {
+        updatePayload.archivedAt = data.archivedAt;
+        patch.archivedAt = data.archivedAt;
+      }
+    }
 
-    await docRef.update(patch);
+    await docRef.update(updatePayload);
 
     return Response.json({
       engagement: {
@@ -151,6 +162,39 @@ export async function PATCH(
     });
   } catch (err) {
     console.error("PATCH /api/admin/services/[id] error:", err);
+    return Response.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  ctx: RouteContext<"/api/admin/services/[id]">
+) {
+  try {
+    const { id } = await ctx.params;
+    const db = getDb();
+    const docRef = db.collection(COLLECTIONS.auditEngagements).doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const current = doc.data() as AuditEngagement;
+    if (!current.archivedAt) {
+      return Response.json(
+        { error: "Engagement must be archived before it can be deleted" },
+        { status: 409 }
+      );
+    }
+
+    await docRef.delete();
+    return new Response(null, { status: 204 });
+  } catch (err) {
+    console.error("DELETE /api/admin/services/[id] error:", err);
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

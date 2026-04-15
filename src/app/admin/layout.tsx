@@ -14,7 +14,9 @@ const ADMIN_NAV = [
   { label: "Dashboard", href: "/admin", icon: IconChart },
   { label: "Consultations", href: "/admin/consultations", icon: IconCalendar },
   { label: "Services", href: "/admin/services", icon: IconClipboard },
+  { label: "Calendly Logs", href: "/admin/calendly-webhooks", icon: IconCalendar },
   { label: "Intake Config", href: "/admin/services/config", icon: IconCogs },
+  { label: "Archive", href: "/admin/archive", icon: IconClipboard },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

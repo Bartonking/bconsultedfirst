@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import type { AuditEngagement, AuditReport, Lead } from "./types";
 import { createServiceIntakeToken } from "./service-intake-token";
+import { createCalendlySchedulingUrl } from "./calendly";
 
 let resend: Resend | null = null;
 
@@ -398,5 +399,59 @@ export async function sendFinalAuditReportEmail(
     subject: "Your completed Shopify operations audit",
     html,
     text: textParts.join("\n"),
+  });
+}
+
+export async function sendConsultationSchedulingEmail({
+  lead,
+  consultationId,
+}: {
+  lead: Lead;
+  consultationId: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const schedulingUrl = createCalendlySchedulingUrl({
+    consultationId,
+    name: lead.storeName || lead.email,
+    email: lead.email,
+  });
+
+  if (!schedulingUrl) {
+    return {
+      success: false,
+      error: "Calendly scheduling URL is not configured",
+    };
+  }
+
+  const storeLabel = getStoreLabel(lead);
+  const html = wrapServiceEmail({
+    title: "Choose your consultation time",
+    introHtml: `<p style="margin:0 0 16px;">Hi ${getGreeting(lead)},</p>
+      <p style="margin:0 0 16px;">Your consultation for <strong>${escapeHtml(
+        storeLabel
+      )}</strong> is already paid for. The only step left is choosing a time in Calendly.</p>
+      <p style="margin:0;">Use the button below to pick your session. Once you finish scheduling, our system will update the meeting record automatically.</p>`,
+    bodyHtml: `<div style="padding:20px;border-radius:10px;background:#f6fbf7;border:1px solid #d9e9dd;">
+        <p style="margin:0;font-size:14px;line-height:1.7;color:#475467;">If you need to change the time later, use the reschedule link from the Calendly confirmation email.</p>
+      </div>`,
+    ctaLabel: "Schedule in Calendly",
+    ctaUrl: schedulingUrl,
+  });
+
+  const text = `Hi ${
+    lead.storeName?.trim() ? `${lead.storeName.trim()} team` : "there"
+  },
+
+Your consultation for ${storeLabel} is already paid for.
+
+Choose your time here:
+${schedulingUrl}
+
+Once you finish scheduling, our system will update the meeting record automatically.`;
+
+  return sendServiceEmail({
+    to: lead.email,
+    subject: "Schedule your Shopify operations consultation",
+    html,
+    text,
   });
 }
