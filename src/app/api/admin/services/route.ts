@@ -76,7 +76,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const { leadId, consultationId, reportId } = parsed.data;
+    const { leadId, consultationId } = parsed.data;
+    let { reportId } = parsed.data;
     const db = getDb();
 
     const leadDoc = await db.collection(COLLECTIONS.leads).doc(leadId).get();
@@ -100,6 +101,17 @@ export async function POST(request: Request) {
           },
           { status: 200 }
         );
+      }
+
+      if (!reportId) {
+        const consultationDoc = await db
+          .collection(COLLECTIONS.consultations)
+          .doc(consultationId)
+          .get();
+        if (consultationDoc.exists) {
+          const consultation = consultationDoc.data() as Consultation;
+          if (consultation.reportId) reportId = consultation.reportId;
+        }
       }
     }
 

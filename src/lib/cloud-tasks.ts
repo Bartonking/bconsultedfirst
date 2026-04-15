@@ -1,3 +1,5 @@
+import { CloudTasksClient } from "@google-cloud/tasks";
+
 export async function enqueueAuditJob(jobId: string): Promise<void> {
   const workerUrl = process.env.WORKER_BASE_URL || "http://localhost:3750";
   const secret = process.env.WORKER_SECRET || "dev-secret-change-in-prod";
@@ -20,8 +22,18 @@ export async function enqueueAuditJob(jobId: string): Promise<void> {
   }
 
   // Production: use Cloud Tasks
-  const { CloudTasksClient } = await import("@google-cloud/tasks");
-  const client = new CloudTasksClient();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  const client =
+    clientEmail && privateKey
+      ? new CloudTasksClient({
+          credentials: {
+            client_email: clientEmail,
+            private_key: privateKey.replace(/\\n/g, "\n"),
+          },
+          projectId: process.env.FIREBASE_PROJECT_ID,
+        })
+      : new CloudTasksClient();
 
   const projectId = process.env.FIREBASE_PROJECT_ID!;
   const location = process.env.CLOUD_TASKS_LOCATION || "us-central1";

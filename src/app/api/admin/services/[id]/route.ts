@@ -51,7 +51,7 @@ export async function GET(
 
     const engagement = engagementDoc.data() as AuditEngagement;
 
-    const [leadDoc, consultationDoc, reportDoc] = await Promise.all([
+    const [leadDoc, consultationDoc, initialReportDoc] = await Promise.all([
       db.collection(COLLECTIONS.leads).doc(engagement.leadId).get(),
       engagement.consultationId
         ? db
@@ -63,6 +63,28 @@ export async function GET(
         ? db.collection(COLLECTIONS.auditReports).doc(engagement.reportId).get()
         : Promise.resolve(null),
     ]);
+
+    let reportDoc = initialReportDoc;
+    if (
+      !engagement.reportId &&
+      consultationDoc &&
+      consultationDoc.exists
+    ) {
+      const consultationData = consultationDoc.data() as Consultation;
+      if (consultationData.reportId) {
+        reportDoc = await db
+          .collection(COLLECTIONS.auditReports)
+          .doc(consultationData.reportId)
+          .get();
+        if (reportDoc.exists) {
+          engagement.reportId = consultationData.reportId;
+          await engagementDoc.ref.update({
+            reportId: consultationData.reportId,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
 
     const lead = leadDoc.exists ? (leadDoc.data() as Lead) : null;
     const consultation =

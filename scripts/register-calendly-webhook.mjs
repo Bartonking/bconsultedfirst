@@ -10,9 +10,13 @@
  *   node scripts/register-calendly-webhook.mjs list
  *   node scripts/register-calendly-webhook.mjs delete <subscription-uuid>
  *
- * After `create`, copy the printed `signing_key` into your prod env as
+ * Calendly's API requires callers to supply their own signing key. If
+ * SIGNING_KEY is not provided, `create` generates a random 32-byte hex key.
+ * The chosen key is printed; copy it into your prod env as
  * CALENDLY_WEBHOOK_SIGNING_KEY and redeploy.
  */
+
+import { randomBytes } from "crypto";
 
 const API = "https://api.calendly.com";
 const TOKEN = process.env.CALENDLY_TOKEN;
@@ -21,6 +25,7 @@ const WEBHOOK_URL =
   "https://www.bconsultedfirst.com/api/webhooks/calendly";
 const EVENTS = ["invitee.created", "invitee.canceled"];
 const SCOPE = process.env.CALENDLY_SCOPE || "user"; // "user" or "organization"
+const SIGNING_KEY = process.env.SIGNING_KEY || randomBytes(32).toString("hex");
 
 if (!TOKEN) {
   console.error("Missing CALENDLY_TOKEN env var.");
@@ -76,6 +81,7 @@ async function create() {
     events: EVENTS,
     organization: orgUri,
     scope: SCOPE,
+    signing_key: SIGNING_KEY,
   };
   if (SCOPE === "user") body.user = userUri;
 
@@ -88,7 +94,7 @@ async function create() {
   console.log("✅ Subscription created.");
   console.log(`   uri:         ${r.uri}`);
   console.log(`   state:       ${r.state}`);
-  console.log(`   signing_key: ${r.signing_key}\n`);
+  console.log(`   signing_key: ${SIGNING_KEY}\n`);
   console.log(
     "👉 Copy the signing_key into your prod env as CALENDLY_WEBHOOK_SIGNING_KEY and redeploy."
   );
