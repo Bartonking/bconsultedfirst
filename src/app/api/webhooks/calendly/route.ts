@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
 import { sanitizeForFirestore } from "@/lib/events/utils";
+import { captureRouteException } from "@/lib/sentry/server";
 import type { CalendlyBucketEvent, CalendlyWebhookLog } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -188,6 +189,16 @@ export async function POST(request: Request) {
     eventType = (parsed.event as string | undefined) || "unknown";
     payload = (parsed.payload as Record<string, unknown> | undefined) || null;
   } catch (err) {
+    await captureRouteException(err, {
+      surface: "webhook",
+      route: "/api/webhooks/calendly",
+      request,
+      statusCode: 400,
+      tags: {
+        "webhook.provider": "calendly",
+      },
+    });
+
     await emitWorkflowEvent({
       type: WORKFLOW_EVENTS.CALENDLY_WEBHOOK_RECEIVED,
       source: "calendly",
@@ -241,6 +252,20 @@ export async function POST(request: Request) {
   }
 
   if (!signingKey) {
+    await captureRouteException(
+      new Error("Missing CALENDLY_WEBHOOK_SIGNING_KEY"),
+      {
+        surface: "webhook",
+        route: "/api/webhooks/calendly",
+        request,
+        statusCode: 500,
+        tags: {
+          "webhook.provider": "calendly",
+          "webhook.event_type": eventType,
+        },
+      }
+    );
+
     await writeCalendlyCompatibilityLog({
       eventType,
       result: "missing_signing_key",
@@ -255,6 +280,21 @@ export async function POST(request: Request) {
   }
 
   if (!verifyCalendlySignature(body, signature, signingKey)) {
+    await captureRouteException(
+      new Error("Calendly webhook signature validation failed"),
+      {
+        surface: "webhook",
+        route: "/api/webhooks/calendly",
+        request,
+        statusCode: 401,
+        tags: {
+          "webhook.provider": "calendly",
+          "webhook.event_type": eventType,
+          "webhook.verification": "failed",
+        },
+      }
+    );
+
     await writeCalendlyCompatibilityLog({
       eventType,
       result: "invalid_signature",
@@ -318,4 +358,3 @@ export async function POST(request: Request) {
 
   return Response.json({ received: true, queued: true });
 }
-

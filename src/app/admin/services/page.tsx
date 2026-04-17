@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { captureClientHandledError } from "@/lib/sentry/client";
 import type {
   AuditEngagement,
   AuditReport,
@@ -73,6 +74,7 @@ export default function ServicesPage() {
   async function handleArchive(id: string, archive: boolean) {
     setRowBusyId(id);
     setActionError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/services/${id}`, {
         method: "PATCH",
@@ -81,12 +83,22 @@ export default function ServicesPage() {
           archivedAt: archive ? new Date().toISOString() : null,
         }),
       });
+      statusCode = res.status;
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || "Failed to update");
       }
       setData((current) => current.filter((d) => d.engagement.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/services",
+        action: archive ? "archive_service" : "unarchive_service",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_service: { engagementId: id },
+        },
+      });
       setActionError(err instanceof Error ? err.message : "Failed to update");
     } finally {
       setRowBusyId(null);
@@ -99,16 +111,27 @@ export default function ServicesPage() {
     }
     setRowBusyId(id);
     setActionError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/services/${id}`, {
         method: "DELETE",
       });
+      statusCode = res.status;
       if (!res.ok && res.status !== 204) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || "Failed to delete");
       }
       setData((current) => current.filter((d) => d.engagement.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/services",
+        action: "delete_service",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_service: { engagementId: id },
+        },
+      });
       setActionError(err instanceof Error ? err.message : "Failed to delete");
     } finally {
       setRowBusyId(null);

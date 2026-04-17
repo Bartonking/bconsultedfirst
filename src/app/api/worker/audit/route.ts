@@ -1,5 +1,7 @@
+import * as Sentry from "@sentry/nextjs";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { processAuditJob } from "@/lib/process-audit-job";
+import { captureRouteException } from "@/lib/sentry/server";
 
 export async function POST(request: Request) {
   // Validate worker secret
@@ -20,10 +22,37 @@ export async function POST(request: Request) {
       return Response.json({ error: "Missing jobId" }, { status: 400 });
     }
 
-    const { report } = await processAuditJob(jobId, { sendEmail: true });
+    const confirmedJobId = jobId;
+    const { report } = await Sentry.startSpan(
+      {
+        name: `audit worker ${confirmedJobId}`,
+        op: "queue.process",
+        forceTransaction: true,
+        attributes: {
+          "messaging.system": process.env.CLOUD_TASKS_QUEUE
+            ? "cloud_tasks"
+            : "http",
+          "audit.job.id": confirmedJobId,
+        },
+      },
+      async () => processAuditJob(confirmedJobId, { sendEmail: true })
+    );
     return Response.json({ success: true, reportId: report.id });
   } catch (err) {
-    console.error("Worker audit error:", err);
+    await captureRouteException(err, {
+      surface: "worker",
+      route: "/api/worker/audit",
+      request,
+      statusCode: 500,
+      tags: {
+        "audit.job.id": jobId,
+      },
+      contexts: {
+        audit_worker: {
+          jobId,
+        },
+      },
+    });
 
     // Mark job as failed if we have a jobId
     if (jobId) {
@@ -38,7 +67,16 @@ export async function POST(request: Request) {
               err instanceof Error ? err.message : "Unknown worker error",
           });
       } catch (updateErr) {
-        console.error("Failed to update job status:", updateErr);
+        await captureRouteException(updateErr, {
+          surface: "worker",
+          route: "/api/worker/audit",
+          request,
+          statusCode: 500,
+          tags: {
+            "audit.job.id": jobId,
+            "audit.update": "failed_status_patch",
+          },
+        });
       }
     }
 

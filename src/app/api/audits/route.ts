@@ -3,6 +3,7 @@ import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { createAuditSchema } from "@/lib/validation";
 import { enqueueAuditJob } from "@/lib/cloud-tasks";
 import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
+import { captureRouteException } from "@/lib/sentry/server";
 import type { Lead, AuditJob } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -73,7 +74,12 @@ export async function POST(request: Request) {
 
     return Response.json({ jobId, status: "queued" as const }, { status: 201 });
   } catch (err) {
-    console.error("POST /api/audits error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/audits",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

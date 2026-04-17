@@ -1,5 +1,7 @@
+import * as Sentry from "@sentry/nextjs";
 import { nanoid } from "nanoid";
 import { COLLECTIONS, getDb } from "@/lib/firebase";
+import { addWorkflowBreadcrumb } from "@/lib/sentry/workflow";
 import type {
   EventAutomationRun,
   WorkflowEvent,
@@ -52,9 +54,24 @@ export async function runAutomationOnce({
   };
 
   await runRef.set(sanitizeForFirestore(run) as Record<string, unknown>);
+  addWorkflowBreadcrumb(event, {
+    action: `automation_start:${handler}`,
+  });
 
   try {
-    const result = await fn();
+    const result = await Sentry.startSpan(
+      {
+        name: `automation ${handler}`,
+        op: "workflow.automation",
+        attributes: {
+          "workflow.event.id": event.id,
+          "workflow.event.type": event.type,
+          "workflow.handler": handler,
+          "workflow.idempotency_key": idempotencyKey,
+        },
+      },
+      async () => fn()
+    );
     const status = result?.status || "processed";
     const completedAt = new Date().toISOString();
     const patch: Partial<EventAutomationRun> = {
@@ -64,6 +81,9 @@ export async function runAutomationOnce({
     };
 
     await runRef.update(sanitizeForFirestore(patch) as Record<string, unknown>);
+    addWorkflowBreadcrumb(event, {
+      action: `automation_${status}:${handler}`,
+    });
     return { ...run, ...patch };
   } catch (err) {
     const completedAt = new Date().toISOString();
@@ -72,6 +92,10 @@ export async function runAutomationOnce({
       status: "failed",
       completedAt,
       error,
+    });
+    addWorkflowBreadcrumb(event, {
+      action: `automation_failed:${handler}`,
+      level: "error",
     });
     throw err;
   }

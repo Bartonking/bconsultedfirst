@@ -4,9 +4,10 @@ import {
   saveBookingSiteConfig,
 } from "@/lib/site-config";
 import { getBookingPriceLabel } from "@/lib/public-site-config";
+import { captureRouteException } from "@/lib/sentry/server";
 import { updateBookingSiteConfigSchema } from "@/lib/validation";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const config = await getBookingSiteConfig();
     return Response.json({
@@ -16,7 +17,12 @@ export async function GET() {
       },
     });
   } catch (err) {
-    console.error("GET /api/admin/site-config/booking error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/admin/site-config/booking",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -44,7 +50,12 @@ export async function PATCH(request: NextRequest) {
       },
     });
   } catch (err) {
-    console.error("PATCH /api/admin/site-config/booking error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/admin/site-config/booking",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

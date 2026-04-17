@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { IconArrowRight } from "@/components/icons";
 import { CHALLENGE_OPTIONS } from "@/lib/constants";
 import { EVENTS, logAnalyticsEvent } from "@/lib/analytics-events";
+import { captureClientHandledError } from "@/lib/sentry/client";
 
 export function AuditForm({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
@@ -15,6 +16,7 @@ export function AuditForm({ compact = false }: { compact?: boolean }) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    let statusCode: number | undefined;
 
     const formData = new FormData(e.currentTarget);
     const payload = {
@@ -29,6 +31,7 @@ export function AuditForm({ compact = false }: { compact?: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      statusCode = res.status;
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -43,6 +46,17 @@ export function AuditForm({ compact = false }: { compact?: boolean }) {
       });
       router.push(`/audit/processing?jobId=${jobId}`);
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/",
+        action: "submit_audit_form",
+        surface: "public",
+        statusCode,
+        contexts: {
+          audit_form: {
+            challenge: payload.challenge || null,
+          },
+        },
+      });
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setLoading(false);
     }

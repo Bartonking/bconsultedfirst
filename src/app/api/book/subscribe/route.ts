@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { verifyBookingToken } from "@/lib/booking-token";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
+import { captureRouteException } from "@/lib/sentry/server";
 import { subscribeSchema } from "@/lib/validation";
 import type { Lead } from "@/lib/types";
 
@@ -87,7 +88,12 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true, source: "direct" });
   } catch (err) {
-    console.error("POST /api/book/subscribe error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/book/subscribe",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

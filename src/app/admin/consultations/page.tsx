@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { captureClientHandledError } from "@/lib/sentry/client";
 import type { Lead, Consultation, AuditEngagement } from "@/lib/types";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -39,6 +40,7 @@ export default function ConsultationsPage() {
   async function handleArchive(id: string, archive: boolean) {
     setRowBusyId(id);
     setActionError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/consultations/${id}`, {
         method: "PATCH",
@@ -47,12 +49,22 @@ export default function ConsultationsPage() {
           archivedAt: archive ? new Date().toISOString() : null,
         }),
       });
+      statusCode = res.status;
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || "Failed to update");
       }
       setData((current) => current.filter((d) => d.consultation.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/consultations",
+        action: archive ? "archive_consultation" : "unarchive_consultation",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_consultation: { consultationId: id },
+        },
+      });
       setActionError(err instanceof Error ? err.message : "Failed to update");
     } finally {
       setRowBusyId(null);
@@ -65,16 +77,27 @@ export default function ConsultationsPage() {
     }
     setRowBusyId(id);
     setActionError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/consultations/${id}`, {
         method: "DELETE",
       });
+      statusCode = res.status;
       if (!res.ok && res.status !== 204) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || "Failed to delete");
       }
       setData((current) => current.filter((d) => d.consultation.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/consultations",
+        action: "delete_consultation",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_consultation: { consultationId: id },
+        },
+      });
       setActionError(err instanceof Error ? err.message : "Failed to delete");
     } finally {
       setRowBusyId(null);
@@ -94,6 +117,7 @@ export default function ConsultationsPage() {
 
     setCreatingId(item.consultation.id);
     setActionError(null);
+    let statusCode: number | undefined;
 
     try {
       const res = await fetch("/api/admin/services", {
@@ -104,6 +128,7 @@ export default function ConsultationsPage() {
           consultationId: item.consultation.id,
         }),
       });
+      statusCode = res.status;
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -122,6 +147,18 @@ export default function ConsultationsPage() {
       );
       router.push(`/admin/services/${engagement.id}`);
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/consultations",
+        action: "create_service_from_consultation",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_consultation: {
+            consultationId: item.consultation.id,
+            leadId: item.lead?.id,
+          },
+        },
+      });
       setActionError(
         err instanceof Error ? err.message : "Failed to create service"
       );

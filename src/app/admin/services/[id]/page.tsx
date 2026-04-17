@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AuditScoreBar } from "@/components/audit/AuditScoreBar";
 import { AuditFinding } from "@/components/audit/AuditFinding";
 import { createCalendlySchedulingUrl } from "@/lib/calendly";
+import { captureClientHandledError } from "@/lib/sentry/client";
 import type {
   AuditEngagement,
   AuditReport,
@@ -239,6 +240,7 @@ export default function AdminServiceDetailPage() {
       setSaveMessage(null);
       setSaveError(null);
     }
+    let statusCode: number | undefined;
 
     try {
       const res = await fetch(`/api/admin/services/${engagement.id}`, {
@@ -264,6 +266,7 @@ export default function AdminServiceDetailPage() {
           finalReportHtml,
         }),
       });
+      statusCode = res.status;
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -288,6 +291,19 @@ export default function AdminServiceDetailPage() {
 
       return updatedEngagement;
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/services/[id]",
+        action: "save_service",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_service: {
+            engagementId: engagement.id,
+            consultationId: consultation?.id,
+            leadId: lead?.id,
+          },
+        },
+      });
       if (!options?.silent) {
         setSaveError(
           err instanceof Error ? err.message : "Failed to save service"
@@ -317,6 +333,7 @@ export default function AdminServiceDetailPage() {
     setActionLoading(route);
     setActionMessage(null);
     setActionError(null);
+    let statusCode: number | undefined;
 
     try {
       if (options?.saveFirst) {
@@ -326,6 +343,7 @@ export default function AdminServiceDetailPage() {
       const res = await fetch(`/api/admin/services/${engagement.id}/${route}`, {
         method: "POST",
       });
+      statusCode = res.status;
       const body = await res.json().catch(() => ({}));
 
       if (!res.ok) {
@@ -339,6 +357,19 @@ export default function AdminServiceDetailPage() {
         setActiveTab(options.nextTab);
       }
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/services/[id]",
+        action: route,
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_service: {
+            engagementId: engagement.id,
+            consultationId: consultation?.id,
+            leadId: lead?.id,
+          },
+        },
+      });
       setActionError(err instanceof Error ? err.message : "Action failed");
     } finally {
       setActionLoading(null);
@@ -350,6 +381,7 @@ export default function AdminServiceDetailPage() {
 
     setArchiveBusy(true);
     setArchiveError(null);
+    let statusCode: number | undefined;
 
     try {
       const res = await fetch(`/api/admin/services/${engagement.id}`, {
@@ -359,6 +391,7 @@ export default function AdminServiceDetailPage() {
           archivedAt: archive ? new Date().toISOString() : null,
         }),
       });
+      statusCode = res.status;
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -371,6 +404,15 @@ export default function AdminServiceDetailPage() {
         current ? { ...current, engagement: updated } : current
       );
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/services/[id]",
+        action: archive ? "archive_service" : "unarchive_service",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_service: { engagementId: engagement.id },
+        },
+      });
       setArchiveError(
         err instanceof Error ? err.message : "Failed to update archive state"
       );
@@ -389,11 +431,13 @@ export default function AdminServiceDetailPage() {
 
     setArchiveBusy(true);
     setArchiveError(null);
+    let statusCode: number | undefined;
 
     try {
       const res = await fetch(`/api/admin/services/${engagement.id}`, {
         method: "DELETE",
       });
+      statusCode = res.status;
 
       if (!res.ok && res.status !== 204) {
         const body = await res.json().catch(() => ({}));
@@ -402,6 +446,15 @@ export default function AdminServiceDetailPage() {
 
       router.push("/admin/services");
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/services/[id]",
+        action: "delete_service",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_service: { engagementId: engagement.id },
+        },
+      });
       setArchiveError(err instanceof Error ? err.message : "Failed to delete");
       setArchiveBusy(false);
     }

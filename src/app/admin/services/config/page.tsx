@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { captureClientHandledError } from "@/lib/sentry/client";
 import type {
   BookingSiteConfig,
   ServiceIntakeConfig,
@@ -78,6 +79,11 @@ export default function ServiceIntakeConfigPage() {
         setBookingConfig(nextBookingConfig);
       })
       .catch((err) => {
+        captureClientHandledError(err, {
+          route: "/admin/services/config",
+          action: "load_service_config",
+          surface: "admin",
+        });
         setSaveError(
           err instanceof Error ? err.message : "Failed to load config"
         );
@@ -135,6 +141,7 @@ export default function ServiceIntakeConfigPage() {
     setSaving(true);
     setSaveMessage(null);
     setSaveError(null);
+    let statusCode: number | undefined;
 
     try {
       const res = await fetch("/api/admin/service-intake-config", {
@@ -145,6 +152,7 @@ export default function ServiceIntakeConfigPage() {
           questions: config.questions,
         }),
       });
+      statusCode = res.status;
 
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -154,6 +162,12 @@ export default function ServiceIntakeConfigPage() {
       setConfig(body.config as ServiceIntakeConfig);
       setSaveMessage("Config updated.");
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/services/config",
+        action: "save_service_intake_config",
+        surface: "admin",
+        statusCode,
+      });
       setSaveError(
         err instanceof Error ? err.message : "Failed to save config"
       );
@@ -166,6 +180,7 @@ export default function ServiceIntakeConfigPage() {
     setBookingSaving(true);
     setSaveMessage(null);
     setSaveError(null);
+    let statusCode: number | undefined;
 
     try {
       const res = await fetch("/api/admin/site-config/booking", {
@@ -173,6 +188,7 @@ export default function ServiceIntakeConfigPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bookingConfig),
       });
+      statusCode = res.status;
 
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -182,6 +198,12 @@ export default function ServiceIntakeConfigPage() {
       setBookingConfig(body.config as BookingSiteConfig);
       setSaveMessage("Booking config updated.");
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/services/config",
+        action: "save_booking_config",
+        surface: "admin",
+        statusCode,
+      });
       setSaveError(
         err instanceof Error ? err.message : "Failed to save booking config"
       );

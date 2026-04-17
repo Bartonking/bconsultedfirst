@@ -1,5 +1,7 @@
+import * as Sentry from "@sentry/nextjs";
 import { decodeWorkflowEventMessage } from "@/lib/events/pubsub-message";
 import { processWorkflowEvent } from "@/lib/events";
+import { captureRouteException } from "@/lib/sentry/server";
 
 export const runtime = "nodejs";
 
@@ -26,13 +28,65 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
-  const eventId = decodeWorkflowEventMessage(body);
+  const message = decodeWorkflowEventMessage(body);
 
-  if (!eventId) {
+  if (!message?.eventId) {
     return Response.json({ error: "Missing eventId" }, { status: 400 });
   }
 
-  await processWorkflowEvent(eventId);
-  return Response.json({ success: true, eventId });
-}
+  const consume = async () =>
+    Sentry.startSpan(
+      {
+        name: message.eventType
+          ? `workflow consume ${message.eventType}`
+          : `workflow consume ${message.eventId}`,
+        op: "queue.process",
+        forceTransaction: true,
+        attributes: {
+          "messaging.system": "pubsub",
+          "messaging.destination.name":
+            process.env.WORKFLOW_EVENTS_TOPIC || "workflow-events",
+          "workflow.event.id": message.eventId,
+          ...(message.eventType
+            ? { "workflow.event.type": message.eventType }
+            : {}),
+          ...(message.correlationId
+            ? { "workflow.correlation_id": message.correlationId }
+            : {}),
+        },
+      },
+      async () => {
+        await processWorkflowEvent(message.eventId);
+      }
+    );
 
+  try {
+    if (message.sentryTrace) {
+      await Sentry.continueTrace(
+        {
+          sentryTrace: message.sentryTrace,
+          baggage: message.baggage,
+        },
+        consume
+      );
+    } else {
+      await consume();
+    }
+  } catch (err) {
+    await captureRouteException(err, {
+      surface: "worker",
+      route: "/api/workers/events",
+      request,
+      statusCode: 500,
+      tags: {
+        "workflow.event_id": message.eventId,
+        "workflow.event_type": message.eventType,
+        "workflow.correlation_id": message.correlationId,
+      },
+    });
+
+    return Response.json({ error: "Worker failed" }, { status: 500 });
+  }
+
+  return Response.json({ success: true, eventId: message.eventId });
+}

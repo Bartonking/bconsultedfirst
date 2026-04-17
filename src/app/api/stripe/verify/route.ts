@@ -2,6 +2,7 @@ import { getStripe } from "@/lib/stripe";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { getBookingSiteConfig } from "@/lib/site-config";
 import { formatPriceFromCents } from "@/lib/public-site-config";
+import { captureRouteException } from "@/lib/sentry/server";
 import type { Consultation } from "@/lib/types";
 
 export async function GET(request: Request) {
@@ -65,7 +66,12 @@ export async function GET(request: Request) {
       consultationDurationMinutes: bookingConfig.consultationDurationMinutes,
     });
   } catch (err) {
-    console.error("GET /api/stripe/verify error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/stripe/verify",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

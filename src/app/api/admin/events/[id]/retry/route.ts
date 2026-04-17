@@ -1,8 +1,9 @@
 import type { NextRequest } from "next/server";
 import { processWorkflowEvent } from "@/lib/events";
+import { captureRouteException } from "@/lib/sentry/server";
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   ctx: RouteContext<"/api/admin/events/[id]/retry">
 ) {
   try {
@@ -10,11 +11,15 @@ export async function POST(
     await processWorkflowEvent(id);
     return Response.json({ success: true, eventId: id });
   } catch (err) {
-    console.error("POST /api/admin/events/[id]/retry error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/admin/events/[id]/retry",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: err instanceof Error ? err.message : "Retry failed" },
       { status: 500 }
     );
   }
 }
-

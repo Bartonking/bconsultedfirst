@@ -1,9 +1,10 @@
 import type { NextRequest } from "next/server";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
+import { captureRouteException } from "@/lib/sentry/server";
 import type { AuditJob, AuditReport, AuditStatusResponse } from "@/lib/types";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: RouteContext<"/api/audits/[jobId]">
 ) {
   try {
@@ -40,7 +41,12 @@ export async function GET(
 
     return Response.json(response);
   } catch (err) {
-    console.error("GET /api/audits/[jobId] error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/audits/[jobId]",
+      request: req,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

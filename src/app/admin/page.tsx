@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { IconEye, IconRefresh, IconDownload } from "@/components/icons";
+import { captureClientHandledError } from "@/lib/sentry/client";
 import type { Lead, AuditJob } from "@/lib/types";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -36,6 +37,7 @@ export default function AdminDashboard() {
   async function handleArchive(id: string, archive: boolean) {
     setRowBusyId(id);
     setActionError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/leads/${id}`, {
         method: "PATCH",
@@ -44,12 +46,22 @@ export default function AdminDashboard() {
           archivedAt: archive ? new Date().toISOString() : null,
         }),
       });
+      statusCode = res.status;
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || "Failed to update");
       }
       setData((current) => current.filter((d) => d.lead.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin",
+        action: archive ? "archive_lead" : "unarchive_lead",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_lead: { leadId: id },
+        },
+      });
       setActionError(err instanceof Error ? err.message : "Failed to update");
     } finally {
       setRowBusyId(null);
@@ -60,14 +72,25 @@ export default function AdminDashboard() {
     if (!window.confirm("Permanently delete this lead? This cannot be undone.")) return;
     setRowBusyId(id);
     setActionError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/leads/${id}`, { method: "DELETE" });
+      statusCode = res.status;
       if (!res.ok && res.status !== 204) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || "Failed to delete");
       }
       setData((current) => current.filter((d) => d.lead.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin",
+        action: "delete_lead",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_lead: { leadId: id },
+        },
+      });
       setActionError(err instanceof Error ? err.message : "Failed to delete");
     } finally {
       setRowBusyId(null);

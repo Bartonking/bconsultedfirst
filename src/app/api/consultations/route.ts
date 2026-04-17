@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
+import { captureRouteException } from "@/lib/sentry/server";
 import { createConsultationSchema } from "@/lib/validation";
 import type { Lead, Consultation } from "@/lib/types";
 
@@ -67,7 +68,12 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (err) {
-    console.error("POST /api/consultations error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/consultations",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -2,6 +2,7 @@ import { COLLECTIONS, getDb } from "@/lib/firebase";
 import { verifyServiceIntakeToken } from "@/lib/service-intake-token";
 import { submitServiceIntakeSchema } from "@/lib/validation";
 import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
+import { captureRouteException } from "@/lib/sentry/server";
 import type { AuditEngagement } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -83,7 +84,12 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
-    console.error("POST /api/service-intake/submit error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/service-intake/submit",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

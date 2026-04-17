@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { updateAuditEngagementSchema } from "@/lib/validation";
 import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
+import { captureRouteException } from "@/lib/sentry/server";
 import type {
   AuditEngagement,
   AuditReport,
@@ -34,7 +35,7 @@ function normalizeIntakeResponses(
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: RouteContext<"/api/admin/services/[id]">
 ) {
   try {
@@ -103,7 +104,12 @@ export async function GET(
 
     return Response.json({ engagement, lead, consultation, report });
   } catch (err) {
-    console.error("GET /api/admin/services/[id] error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/admin/services/[id]",
+      request: req,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -200,7 +206,12 @@ export async function PATCH(
       },
     });
   } catch (err) {
-    console.error("PATCH /api/admin/services/[id] error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/admin/services/[id]",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -209,7 +220,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: RouteContext<"/api/admin/services/[id]">
 ) {
   try {
@@ -233,7 +244,12 @@ export async function DELETE(
     await docRef.delete();
     return new Response(null, { status: 204 });
   } catch (err) {
-    console.error("DELETE /api/admin/services/[id] error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/admin/services/[id]",
+      request: req,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

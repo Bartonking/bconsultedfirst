@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -13,7 +14,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "bConsulted First | Free AI-Powered Shopify Operations Audit",
   description:
     "Get a free AI-powered preliminary audit of your Shopify store operations. Identify workflow friction, catalog issues, and operational gaps. No login required.",
@@ -24,6 +25,16 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+
+export function generateMetadata(): Metadata {
+  return {
+    ...baseMetadata,
+    other: {
+      ...baseMetadata.other,
+      ...Sentry.getTraceData(),
+    },
+  };
+}
 
 export default function RootLayout({
   children,

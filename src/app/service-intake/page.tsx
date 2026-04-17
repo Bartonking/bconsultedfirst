@@ -40,6 +40,7 @@ import type {
   ServiceIntakeStepId,
 } from "@/lib/types";
 import { EVENTS, logAnalyticsEvent } from "@/lib/analytics-events";
+import { captureClientHandledError } from "@/lib/sentry/client";
 
 interface ServiceIntakeContext {
   engagementId: string;
@@ -489,8 +490,10 @@ function ServiceIntakeContent() {
       return;
     }
 
+    let statusCode: number | undefined;
     fetch(`/api/service-intake/context?token=${encodeURIComponent(token)}`)
       .then(async (res) => {
+        statusCode = res.status;
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
           throw new Error(body.error || "Unable to load intake");
@@ -504,6 +507,17 @@ function ServiceIntakeContent() {
         setCurrentStepIndex(getFirstIncompleteStepIndex(data, initialState));
       })
       .catch((err) => {
+        captureClientHandledError(err, {
+          route: "/service-intake",
+          action: "load_intake_context",
+          surface: "public",
+          statusCode,
+          contexts: {
+            service_intake: {
+              hasToken: Boolean(token),
+            },
+          },
+        });
         setLoadError(
           err instanceof Error ? err.message : "Unable to load intake"
         );
@@ -616,6 +630,7 @@ function ServiceIntakeContent() {
       setSavingDraft(true);
       setSaveError(null);
       setSaveStatus("saving");
+      let statusCode: number | undefined;
 
       try {
         const res = await fetch("/api/service-intake/save-step", {
@@ -630,6 +645,7 @@ function ServiceIntakeContent() {
             goals: derivedValues.goalsValue,
           }),
         });
+        statusCode = res.status;
 
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -641,6 +657,18 @@ function ServiceIntakeContent() {
         setSaveStatus("saved");
         return true;
       } catch (err) {
+        captureClientHandledError(err, {
+          route: "/service-intake",
+          action: "save_intake_draft",
+          surface: "public",
+          statusCode,
+          contexts: {
+            service_intake: {
+              engagementId: context.engagementId,
+              currentStep,
+            },
+          },
+        });
         const message =
           err instanceof Error ? err.message : "Unable to save your progress";
         setSaveError(message);
@@ -650,7 +678,7 @@ function ServiceIntakeContent() {
         setSavingDraft(false);
       }
     },
-    [context, derivedValues, draftFingerprint, token, wizard]
+    [context, currentStep, derivedValues, draftFingerprint, token, wizard]
   );
 
   useEffect(() => {
@@ -743,6 +771,7 @@ function ServiceIntakeContent() {
 
     setSubmitting(true);
     setSubmitError(null);
+    let statusCode: number | undefined;
 
     try {
       const res = await fetch("/api/service-intake/submit", {
@@ -757,6 +786,7 @@ function ServiceIntakeContent() {
           goals: derivedValues.goalsValue,
         }),
       });
+      statusCode = res.status;
 
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -776,6 +806,17 @@ function ServiceIntakeContent() {
           : current
       );
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/service-intake",
+        action: "submit_intake",
+        surface: "public",
+        statusCode,
+        contexts: {
+          service_intake: {
+            engagementId: context?.engagementId,
+          },
+        },
+      });
       setSubmitError(
         err instanceof Error ? err.message : "Unable to submit intake"
       );

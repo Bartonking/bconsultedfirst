@@ -5,6 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { IconArrowRight, IconCheck, IconMail } from "@/components/icons";
 import { EVENTS, logAnalyticsEvent } from "@/lib/analytics-events";
+import { captureClientHandledError } from "@/lib/sentry/client";
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -15,6 +16,7 @@ export default function ContactPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    let statusCode: number | undefined;
 
     const fd = new FormData(e.currentTarget);
     const payload = {
@@ -30,12 +32,24 @@ export default function ContactPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      statusCode = res.status;
       if (!res.ok) throw new Error("Failed to send. Please try again.");
       void logAnalyticsEvent(EVENTS.CONTACT_FORM_SUBMITTED, {
         has_subject: Boolean(payload.subject),
       });
       setSubmitted(true);
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/contact",
+        action: "submit_contact_form",
+        surface: "public",
+        statusCode,
+        contexts: {
+          contact_form: {
+            hasSubject: Boolean(payload.subject),
+          },
+        },
+      });
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AuditScoreBar } from "@/components/audit/AuditScoreBar";
 import { AuditFinding } from "@/components/audit/AuditFinding";
 import { IconArrowRight } from "@/components/icons";
+import { captureClientHandledError } from "@/lib/sentry/client";
 import type {
   AuditReport,
   Lead,
@@ -73,6 +74,7 @@ export default function AdminAuditReview() {
 
     setCreatingService(true);
     setServiceError(null);
+    let statusCode: number | undefined;
 
     try {
       const res = await fetch("/api/admin/services", {
@@ -84,6 +86,7 @@ export default function AdminAuditReview() {
           reportId: report.id,
         }),
       });
+      statusCode = res.status;
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -97,6 +100,19 @@ export default function AdminAuditReview() {
       );
       router.push(`/admin/services/${nextEngagement.id}`);
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/audit/[id]",
+        action: "create_service_from_audit",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_audit: {
+            reportId: report.id,
+            leadId: lead?.id,
+            consultationId: consultation?.id,
+          },
+        },
+      });
       setServiceError(
         err instanceof Error ? err.message : "Failed to create service"
       );

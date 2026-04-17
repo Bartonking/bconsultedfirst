@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
+import { captureRouteException } from "@/lib/sentry/server";
 import { createAuditEngagementSchema } from "@/lib/validation";
 import type {
   AuditEngagement,
@@ -56,7 +57,12 @@ export async function GET(request: Request) {
 
     return Response.json({ services });
   } catch (err) {
-    console.error("GET /api/admin/services error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/admin/services",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -150,7 +156,12 @@ export async function POST(request: Request) {
 
     return Response.json({ engagement, created: true }, { status: 201 });
   } catch (err) {
-    console.error("POST /api/admin/services error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/admin/services",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

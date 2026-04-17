@@ -1,5 +1,6 @@
 import { verifyServiceIntakeToken } from "@/lib/service-intake-token";
 import { COLLECTIONS, getDb } from "@/lib/firebase";
+import { captureRouteException } from "@/lib/sentry/server";
 import type { AuditEngagement, Lead } from "@/lib/types";
 import { getServiceIntakeConfig } from "@/lib/service-intake-config";
 
@@ -56,7 +57,12 @@ export async function GET(request: Request) {
       config,
     });
   } catch (err) {
-    console.error("GET /api/service-intake/context error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/service-intake/context",
+      request,
+      statusCode: 500,
+    });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -18,6 +18,7 @@ import {
   DEFAULT_BOOKING_CONFIG,
   getBookingPriceLabel,
 } from "@/lib/public-site-config";
+import { captureClientHandledError } from "@/lib/sentry/client";
 import type { BookingSiteConfig } from "@/lib/types";
 
 interface BookingContext {
@@ -75,7 +76,17 @@ function BookContent() {
         setCtx(data);
         setCtxLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        captureClientHandledError(err, {
+          route: "/book",
+          action: "load_booking_context",
+          surface: "public",
+          contexts: {
+            booking_context: {
+              hasToken: Boolean(token),
+            },
+          },
+        });
         setCtxError(true);
         setCtxLoading(false);
       });
@@ -90,7 +101,12 @@ function BookContent() {
       .then((data) => {
         setBookingConfig(data.config || DEFAULT_BOOKING_CONFIG);
       })
-      .catch(() => {
+      .catch((err) => {
+        captureClientHandledError(err, {
+          route: "/book",
+          action: "load_booking_config",
+          surface: "public",
+        });
         setBookingConfig(DEFAULT_BOOKING_CONFIG);
       });
   }, []);
@@ -98,6 +114,7 @@ function BookContent() {
   async function handleSubscribe() {
     setSubscribing(true);
     setSubscribeError(null);
+    let statusCode: number | undefined;
 
     const payload = token
       ? { token }
@@ -113,12 +130,26 @@ function BookContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      statusCode = res.status;
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || "Failed to subscribe");
       }
       setSubscribed(true);
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/book",
+        action: "subscribe_booking_followup",
+        surface: "public",
+        statusCode,
+        contexts: {
+          booking_followup: {
+            hasToken: Boolean(token),
+            leadId: ctx?.leadId,
+            reportId: ctx?.reportId,
+          },
+        },
+      });
       setSubscribeError(
         err instanceof Error ? err.message : "Failed to subscribe"
       );
@@ -130,6 +161,7 @@ function BookContent() {
   async function handleCheckout() {
     setCheckoutLoading(true);
     setCheckoutError(null);
+    let statusCode: number | undefined;
 
     const name = ctx?.storeName || formName;
     const email = ctx?.email || formEmail;
@@ -153,6 +185,7 @@ function BookContent() {
           context: formContext || undefined,
         }),
       });
+      statusCode = res.status;
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -167,6 +200,20 @@ function BookContent() {
       });
       window.location.href = url;
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/book",
+        action: "start_checkout",
+        surface: "public",
+        statusCode,
+        contexts: {
+          booking_checkout: {
+            hasToken: Boolean(token),
+            leadId: ctx?.leadId,
+            reportId: ctx?.reportId,
+            challenge: ctx?.challengeArea || formChallenge || null,
+          },
+        },
+      });
       setCheckoutError(
         err instanceof Error ? err.message : "Something went wrong."
       );

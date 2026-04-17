@@ -3,6 +3,7 @@ import { verifyBookingToken } from "@/lib/booking-token";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
 import { getStripe } from "@/lib/stripe";
 import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
+import { captureRouteException } from "@/lib/sentry/server";
 import { getBookingSiteConfig } from "@/lib/site-config";
 import { checkoutSessionSchema } from "@/lib/validation";
 import type { Lead, Consultation } from "@/lib/types";
@@ -198,7 +199,12 @@ export async function POST(request: Request) {
 
     return Response.json({ url: session.url }, { status: 201 });
   } catch (err) {
-    console.error("POST /api/stripe/checkout-session error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/stripe/checkout-session",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

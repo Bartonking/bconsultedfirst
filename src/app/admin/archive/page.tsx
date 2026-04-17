@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { captureClientHandledError } from "@/lib/sentry/client";
 import type {
   AuditEngagement,
   AuditJob,
@@ -87,15 +88,26 @@ export default function ArchivePage() {
   async function unarchiveLead(id: string) {
     setBusyId(id);
     setError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/leads/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ archivedAt: null }),
       });
+      statusCode = res.status;
       if (!res.ok) throw new Error((await res.json()).error || "Failed");
       setLeads((list) => list.filter((l) => l.lead.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/archive",
+        action: "unarchive_lead",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_archive: { entity: "lead", id },
+        },
+      });
       setError(err instanceof Error ? err.message : "Failed to unarchive");
     } finally {
       setBusyId(null);
@@ -106,13 +118,24 @@ export default function ArchivePage() {
     if (!window.confirm("Permanently delete this lead? This cannot be undone.")) return;
     setBusyId(id);
     setError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/leads/${id}`, { method: "DELETE" });
+      statusCode = res.status;
       if (!res.ok && res.status !== 204) {
         throw new Error((await res.json().catch(() => ({}))).error || "Failed");
       }
       setLeads((list) => list.filter((l) => l.lead.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/archive",
+        action: "delete_lead",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_archive: { entity: "lead", id },
+        },
+      });
       setError(err instanceof Error ? err.message : "Failed to delete");
     } finally {
       setBusyId(null);
@@ -122,15 +145,26 @@ export default function ArchivePage() {
   async function unarchiveConsultation(id: string) {
     setBusyId(id);
     setError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/consultations/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ archivedAt: null }),
       });
+      statusCode = res.status;
       if (!res.ok) throw new Error((await res.json()).error || "Failed");
       setConsultations((list) => list.filter((c) => c.consultation.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/archive",
+        action: "unarchive_consultation",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_archive: { entity: "consultation", id },
+        },
+      });
       setError(err instanceof Error ? err.message : "Failed to unarchive");
     } finally {
       setBusyId(null);
@@ -141,13 +175,24 @@ export default function ArchivePage() {
     if (!window.confirm("Permanently delete this consultation? This cannot be undone.")) return;
     setBusyId(id);
     setError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/consultations/${id}`, { method: "DELETE" });
+      statusCode = res.status;
       if (!res.ok && res.status !== 204) {
         throw new Error((await res.json().catch(() => ({}))).error || "Failed");
       }
       setConsultations((list) => list.filter((c) => c.consultation.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/archive",
+        action: "delete_consultation",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_archive: { entity: "consultation", id },
+        },
+      });
       setError(err instanceof Error ? err.message : "Failed to delete");
     } finally {
       setBusyId(null);
@@ -157,15 +202,26 @@ export default function ArchivePage() {
   async function unarchiveService(id: string) {
     setBusyId(id);
     setError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/services/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ archivedAt: null }),
       });
+      statusCode = res.status;
       if (!res.ok) throw new Error((await res.json()).error || "Failed");
       setServices((list) => list.filter((s) => s.engagement.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/archive",
+        action: "unarchive_service",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_archive: { entity: "service", id },
+        },
+      });
       setError(err instanceof Error ? err.message : "Failed to unarchive");
     } finally {
       setBusyId(null);
@@ -176,13 +232,24 @@ export default function ArchivePage() {
     if (!window.confirm("Permanently delete this engagement? This cannot be undone.")) return;
     setBusyId(id);
     setError(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/services/${id}`, { method: "DELETE" });
+      statusCode = res.status;
       if (!res.ok && res.status !== 204) {
         throw new Error((await res.json().catch(() => ({}))).error || "Failed");
       }
       setServices((list) => list.filter((s) => s.engagement.id !== id));
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/archive",
+        action: "delete_service",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_archive: { entity: "service", id },
+        },
+      });
       setError(err instanceof Error ? err.message : "Failed to delete");
     } finally {
       setBusyId(null);

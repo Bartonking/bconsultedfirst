@@ -59,3 +59,5 @@ docs/private/
 #Firebase
 bconsulted2nd-firebase-adminsdk-fbsvc-bd114078bc.json
 *-firebase-adminsdk-*.json
+# Sentry Config File
+.env.sentry-build-plugin

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { captureClientHandledError } from "@/lib/sentry/client";
 import type { EventAutomationRun, WorkflowEvent } from "@/lib/types";
 
 interface EventDetailData {
@@ -34,15 +35,28 @@ export default function AdminEventDetailPage() {
   async function retry() {
     setRetrying(true);
     setMessage(null);
+    let statusCode: number | undefined;
     try {
       const res = await fetch(`/api/admin/events/${params.id}/retry`, {
         method: "POST",
       });
+      statusCode = res.status;
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Retry failed");
       setMessage("Retry completed.");
       await load();
     } catch (err) {
+      captureClientHandledError(err, {
+        route: "/admin/events/[id]",
+        action: "retry_workflow_event",
+        surface: "admin",
+        statusCode,
+        contexts: {
+          admin_event: {
+            eventId: params.id,
+          },
+        },
+      });
       setMessage(err instanceof Error ? err.message : "Retry failed");
     } finally {
       setRetrying(false);
@@ -165,4 +179,3 @@ export default function AdminEventDetailPage() {
     </div>
   );
 }
-

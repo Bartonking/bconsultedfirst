@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
+import { captureRouteException } from "@/lib/sentry/server";
 import type { Lead } from "@/lib/types";
 
 const patchSchema = z.object({
@@ -52,7 +53,12 @@ export async function PATCH(
 
     return Response.json({ lead: { ...current, ...responsePatch } });
   } catch (err) {
-    console.error("PATCH /api/admin/leads/[id] error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/admin/leads/[id]",
+      request,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -61,7 +67,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: RouteContext<"/api/admin/leads/[id]">
 ) {
   try {
@@ -85,7 +91,12 @@ export async function DELETE(
     await docRef.delete();
     return new Response(null, { status: 204 });
   } catch (err) {
-    console.error("DELETE /api/admin/leads/[id] error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/admin/leads/[id]",
+      request: req,
+      statusCode: 500,
+    });
     return Response.json(
       { error: "Internal server error" },
       { status: 500 }

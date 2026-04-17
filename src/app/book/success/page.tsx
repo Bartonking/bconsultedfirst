@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { IconCheck, IconCalendar } from "@/components/icons";
+import { captureClientHandledError } from "@/lib/sentry/client";
 
 interface VerifyData {
   consultationId: string;
@@ -72,9 +73,11 @@ function SuccessContent() {
 
   useEffect(() => {
     if (!sessionId) return;
+    let statusCode: number | undefined;
 
     fetch(`/api/stripe/verify?session_id=${encodeURIComponent(sessionId)}`)
       .then(async (res) => {
+        statusCode = res.status;
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error || "Payment verification failed");
@@ -86,6 +89,17 @@ function SuccessContent() {
         setLoading(false);
       })
       .catch((err) => {
+        captureClientHandledError(err, {
+          route: "/book/success",
+          action: "verify_checkout_session",
+          surface: "public",
+          statusCode,
+          contexts: {
+            booking_success: {
+              hasSessionId: Boolean(sessionId),
+            },
+          },
+        });
         setError(err.message);
         setLoading(false);
       });

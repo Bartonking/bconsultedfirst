@@ -1,5 +1,6 @@
 import { verifyBookingToken } from "@/lib/booking-token";
 import { getDb, COLLECTIONS } from "@/lib/firebase";
+import { captureRouteException } from "@/lib/sentry/server";
 import type { Lead, AuditReport } from "@/lib/types";
 
 export async function GET(request: Request) {
@@ -56,7 +57,12 @@ export async function GET(request: Request) {
       ...reportData,
     });
   } catch (err) {
-    console.error("GET /api/book/context error:", err);
+    await captureRouteException(err, {
+      surface: "api",
+      route: "/api/book/context",
+      request,
+      statusCode: 500,
+    });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

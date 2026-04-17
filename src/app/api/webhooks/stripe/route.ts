@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { WORKFLOW_EVENTS, emitWorkflowEvent } from "@/lib/events";
+import { captureRouteException } from "@/lib/sentry/server";
 
 export const runtime = "nodejs";
 
@@ -20,7 +21,24 @@ export async function POST(request: Request) {
     },
   });
 
-  if (!signature || !webhookSecret) {
+  if (!signature) {
+    return Response.json(
+      { error: "Missing signature or webhook secret" },
+      { status: 401 }
+    );
+  }
+
+  if (!webhookSecret) {
+    await captureRouteException(new Error("Missing STRIPE_WEBHOOK_SECRET"), {
+      surface: "webhook",
+      route: "/api/webhooks/stripe",
+      request,
+      statusCode: 401,
+      tags: {
+        "webhook.provider": "stripe",
+      },
+    });
+
     return Response.json(
       { error: "Missing signature or webhook secret" },
       { status: 401 }
@@ -32,7 +50,16 @@ export async function POST(request: Request) {
     const stripe = getStripe();
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
-    console.error("Stripe webhook signature verification failed:", err);
+    await captureRouteException(err, {
+      surface: "webhook",
+      route: "/api/webhooks/stripe",
+      request,
+      statusCode: 401,
+      tags: {
+        "webhook.provider": "stripe",
+        "webhook.verification": "failed",
+      },
+    });
     return Response.json({ error: "Invalid signature" }, { status: 401 });
   }
 
@@ -41,7 +68,19 @@ export async function POST(request: Request) {
     const consultationId = session.metadata?.consultationId;
 
     if (!consultationId) {
-      console.error("Stripe webhook: missing consultationId in metadata");
+      await captureRouteException(
+        new Error("Stripe webhook missing consultationId metadata"),
+        {
+          surface: "webhook",
+          route: "/api/webhooks/stripe",
+          request,
+          statusCode: 400,
+          tags: {
+            "webhook.provider": "stripe",
+            "webhook.event_type": event.type,
+          },
+        }
+      );
       return Response.json({ error: "Missing metadata" }, { status: 400 });
     }
 
